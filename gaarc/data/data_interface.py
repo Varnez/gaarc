@@ -21,6 +21,11 @@ class ARCDataset(Dataset):
 
     In this effect, transformations such as padding are made available to treat the images.
 
+    Lastly, the possibility to avoid data caches is to be able to use have a non-training oriented
+    mode, so that if processing time is not of the essence because, for example, the class is
+    being used for data exploration and it's desired not to exploit memory as much, so that this
+    system can be removed. This flag should not be set to False if the class is being loaded for
+    training, since it will slow down the training procedure by an order of magnitude.
 
     Ideally, it's expected to be initialized with either train or eval jsons or even both subsets
     at the same time.
@@ -135,7 +140,7 @@ class ARCDataset(Dataset):
         return len(self._contents)
 
     def __getitem__(self, idx):
-        sample = self._samples[idx]
+        sample = self.samples[idx]
 
         padded_sample, padding = padd_image(
             sample, self._padding_height, self._padding_width, -1
