@@ -17,5 +17,5 @@ torch = ">=2.2.2,<2.3.0"
 
 
 [build-system]
-requires = ["poetry-pipcore"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
