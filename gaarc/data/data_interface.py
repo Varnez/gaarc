@@ -5,24 +5,42 @@ import numpy as np
 
 
 class ARC_dataset:
-    def __init__(self, arc_json_file: Path):
-        self.tasks = []
+    def __init__(self, arc_jsons: Path | list[Path]):
+        self.tasks: list[dict[str, list]] = []
+        self._samples: list | None = None
         self._input_samples: list | None = None
         self._output_samples: list | None = None
 
-        with open(arc_json_file, "r", encoding="utf-8") as file_pointer:
-            contents = json.loads(file_pointer.read())
+        if type(arc_jsons) is Path:
+            arc_jsons: list[Path] = [arc_jsons]  # type: ignore[no-redef]
 
-        for task in contents:
-            processed_task: dict[str, list] = {"input": [], "ouput": []}
+        for arc_json_file in arc_jsons:  # type: ignore[union-attr]
+            with open(arc_json_file, "r", encoding="utf-8") as file_pointer:
+                contents = json.loads(file_pointer.read())
 
-            for input_sample in task["input"]:
-                processed_task["input"].append(np.array(input_sample))
+            for task in contents:
+                processed_task: dict[str, list] = {"input": [], "ouput": []}
 
-            for output_sample in task["output"]:
-                processed_task["output"].append(np.array(output_sample))
+                for input_sample in task["input"]:
+                    processed_task["input"].append(np.array(input_sample))
 
-        self.tasks.append(processed_task)
+                for output_sample in task["output"]:
+                    processed_task["output"].append(np.array(output_sample))
+
+            self.tasks.append(processed_task)
+
+    @property
+    def samples(self) -> list[np.ndarray]:
+        if self._samples is None:
+            samples = []
+
+            for task in self.tasks:
+                samples.extend(task["input"])
+                samples.extend(task["output"])
+
+            self._samples = samples
+
+        return self._samples
 
     @property
     def input_samples(self) -> list[np.ndarray]:
