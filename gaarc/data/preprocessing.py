@@ -45,7 +45,7 @@ def padd_image(
     """
     original_height, original_width = image.shape
 
-    frammed_image = cv2.copyMakeBorder(  # type: ignore
+    frammed_image = cv2.copyMakeBorder(  # type: ignore[call-overload]
         image,
         frame_size,
         frame_size,
@@ -69,7 +69,7 @@ def padd_image(
     if horizontal_pad % 2 != 0:
         left += 1
 
-    padded_image = cv2.copyMakeBorder(  # type: ignore
+    padded_image = cv2.copyMakeBorder(  # type: ignore[call-overload]
         frammed_image,
         top,
         bottom,
