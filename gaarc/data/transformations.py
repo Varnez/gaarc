@@ -7,7 +7,7 @@ import numpy as np
 # pylint: disable=no-member
 
 
-def rotate_image(image: np.ndarray, angle: int | None = None) -> np.ndarray:
+def rotate_image(image: np.ndarray, angle: int | None = None) -> tuple[np.ndarray, int]:
     """
     Rotates the provided image the amount of angles indicated. The rotation only supports angles
     are multiples of 90º.
@@ -26,6 +26,8 @@ def rotate_image(image: np.ndarray, angle: int | None = None) -> np.ndarray:
     -------
     np.ndarray
         Rotated image.
+    int
+        Angle used for rotate. Useful to know what random angle was chosen if none provided.
     """
     ROTATIONS = {
         90: cv2.ROTATE_90_CLOCKWISE,
@@ -45,10 +47,10 @@ def rotate_image(image: np.ndarray, angle: int | None = None) -> np.ndarray:
 
     rotated_image = cv2.rotate(image, rotation)
 
-    return rotated_image
+    return rotated_image, angle
 
 
-def flip_image(image: np.ndarray, axis: str | None = None) -> np.ndarray:
+def flip_image(image: np.ndarray, axis: str | None = None) -> tuple[np.ndarray, str]:
     """
     Flips an image over the selected axis.
 
@@ -70,6 +72,8 @@ def flip_image(image: np.ndarray, axis: str | None = None) -> np.ndarray:
     -------
     np.ndarray
         Flipped image.
+    str
+        Axis used for rotate. Useful to know what random axis was chosen if none provided.
     """
     FLIP_AXIS = {"vertical": 0, "y": 0, "horizontal": 1, "x": 1, "both": -1, "xy": -1}
 
@@ -91,4 +95,4 @@ def flip_image(image: np.ndarray, axis: str | None = None) -> np.ndarray:
 
     flipped_image = cv2.flip(image, flip_code)
 
-    return flipped_image
+    return flipped_image, axis
