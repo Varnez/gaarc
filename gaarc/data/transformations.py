@@ -7,7 +7,7 @@ import numpy as np
 # pylint: disable=no-member
 
 
-def rotate_image(image: np.ndarray, angles: int | None = None) -> np.ndarray:
+def rotate_image(image: np.ndarray, angle: int | None = None) -> np.ndarray:
     """
     Rotates the provided image the amount of angles indicated. The rotation only supports angles
     are multiples of 90º.
@@ -18,7 +18,7 @@ def rotate_image(image: np.ndarray, angles: int | None = None) -> np.ndarray:
     ----------
     image : np.ndarray
         Image to rotate, formatted as a numpy array.
-    angles : int | None, optional
+    angle : int | None, optional
         Amount of angles, multiple of 90º, to rate the image.
         By default None, which will cause a rotation which is a random multiple of 90º.
 
@@ -33,15 +33,15 @@ def rotate_image(image: np.ndarray, angles: int | None = None) -> np.ndarray:
         270: cv2.ROTATE_90_COUNTERCLOCKWISE,
     }
 
-    if angles is None:
-        angles = random.choice(list(ROTATIONS.keys()))
+    if angle is None:
+        angle = random.choice(list(ROTATIONS.keys()))
 
-    if angles not in ROTATIONS:
+    if angle not in ROTATIONS:
         raise ValueError(
-            f"Only angles multiple of 90º are supported ({angles} was provided)"
+            f"Only angles multiple of 90º are supported ({angle} was provided)"
         )
 
-    rotation = ROTATIONS[angles]
+    rotation = ROTATIONS[angle]
 
     rotated_image = cv2.rotate(image, rotation)
 
