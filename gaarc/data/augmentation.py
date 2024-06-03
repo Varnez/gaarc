@@ -12,14 +12,12 @@ class DataAugmentationTransformation(ABC):
         self._chance_of_execution = chance_of_execution
 
     @abc.abstractmethod
-    def transform(self, image: np.ndarray, **kwargs) -> np.ndarray:
+    def transform(self, image: np.ndarray) -> np.ndarray:
         pass
 
 
 class FlipTransformation(DataAugmentationTransformation):
-    def transform(  # pylint: disable=arguments-differ
-        self, image: np.ndarray, axis: str | None = None
-    ) -> np.ndarray:
+    def transform(self, image: np.ndarray, axis: str | None = None) -> np.ndarray:
         if random.random() <= self._chance_of_execution:
             image = flip_image(image, axis)
 
@@ -27,9 +25,7 @@ class FlipTransformation(DataAugmentationTransformation):
 
 
 class RotateTransformation(DataAugmentationTransformation):
-    def transform(  # pylint: disable=arguments-differ
-        self, image: np.ndarray, angle: str | None = None
-    ) -> np.ndarray:
+    def transform(self, image: np.ndarray, angle: str | None = None) -> np.ndarray:
         if random.random() <= self._chance_of_execution:
             image = rotate_image(image, angle)
 
