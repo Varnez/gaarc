@@ -6,7 +6,8 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from gaarc.data.data_preprocessing import padd_image
+from gaarc.data.augmentation import DataAugmentationTransformation
+from gaarc.data.preprocessing import padd_image
 
 
 class ARCDataset(Dataset):
@@ -36,6 +37,9 @@ class ARCDataset(Dataset):
         arc_task_jsons: list[Path],
         device: str | torch.device | None = None,
         padding_shape: tuple[int, int] | None = None,
+        augmentation_transformations: (
+            list[DataAugmentationTransformation] | None
+        ) = None,
         cache_data_views: bool = True,
     ):
         self._samples: list[np.ndarray] | None = None
@@ -43,6 +47,10 @@ class ARCDataset(Dataset):
         self._test_samples: list[np.ndarray] | None = None
         self._padding_height: int | None = None
         self._padding_width: int | None = None
+        self._augmentation_transformations: (
+            list[DataAugmentationTransformation] | None
+        ) = augmentation_transformations
+
         self._cache_data_views: bool = cache_data_views
 
         self._device: torch.device = self._resolve_device(device)
@@ -151,6 +159,12 @@ class ARCDataset(Dataset):
         target = sample
         target = torch.Tensor(target).unsqueeze(0)
         target = target.to(self._device)
+
+        if self._augmentation_transformations is not None:
+            for agumentation_transformation in self._augmentation_transformations:
+                padded_sample, target = agumentation_transformation.transform_in_bulk(
+                    [padded_sample, target]
+                )
 
         return padded_sample, target, padding
 
