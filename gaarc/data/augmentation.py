@@ -1,7 +1,7 @@
 import abc
 import random
 from abc import ABC
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 
@@ -9,25 +9,26 @@ from gaarc.data.transformations import flip_image, rotate_image
 
 
 class DataAugmentationTransformation(ABC):
+    _transformation: Callable
+
     def __init__(self, chance_of_execution: float = 1.0):
         self._chance_of_execution = chance_of_execution
-        self._transformation: Callable
 
     @abc.abstractmethod
-    def transform(self, image: np.ndarray, *args, **kwargs) -> np.ndarray:
+    def transform(self, image: np.ndarray) -> np.ndarray:
         if random.random() <= self._chance_of_execution:
-            image = self._transformation(image, *args, **kwargs)
+            image = self._transformation(image)
 
         return image
 
     @abc.abstractmethod
-    def transform_in_bulk(
-        self, images: list[np.ndarray], *args, **kwargs
-    ) -> list[np.ndarray]:
+    def transform_in_bulk(self, images: list[np.ndarray]) -> list[np.ndarray]:
         transformed_images = []
         if random.random() <= self._chance_of_execution:
+            parameter: Any | None = None
+
             for image in images:
-                image = self._transformation(image, *args, **kwargs)
+                image, parameter = self._transformation(image, parameter)
 
                 transformed_images.append(image)
 
@@ -35,14 +36,8 @@ class DataAugmentationTransformation(ABC):
 
 
 class FlipTransformation(DataAugmentationTransformation):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._transformation = flip_image
+    _transformation = flip_image
 
 
 class RotateTransformation(DataAugmentationTransformation):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._transformation = rotate_image
+    _transformation = rotate_image
