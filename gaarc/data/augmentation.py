@@ -32,8 +32,6 @@ class DataAugmentationTransformation(ABC):
             parameter: Any | None = None
 
             for image in images:
-                print(image)
-                print(parameter)
                 image, parameter = self._transformation(image, parameter)
 
                 transformed_images.append(image)
