@@ -26,9 +26,9 @@ class DataAugmentationTransformation(ABC):
         return image
 
     def transform_in_bulk(self, images: list[np.ndarray]) -> list[np.ndarray]:
-        transformed_images = []
-
         if random.random() <= self._chance_of_execution:
+            transformed_images: list[np.ndarray] = []
+
             parameter: Any | None = None
 
             for image in images:
@@ -36,7 +36,9 @@ class DataAugmentationTransformation(ABC):
 
                 transformed_images.append(image)
 
-        return transformed_images
+            images = transformed_images
+
+        return images
 
 
 class FlipTransformation(DataAugmentationTransformation):
