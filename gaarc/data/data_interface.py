@@ -153,18 +153,20 @@ class ARCDataset(Dataset):
         padded_sample, padding = padd_image(
             sample, self._padding_height, self._padding_width, -1
         )
-        padded_sample = torch.Tensor(padded_sample).unsqueeze(0).unsqueeze(0)
-        padded_sample = padded_sample.to(self._device)
 
         target = sample
-        target = torch.Tensor(target).unsqueeze(0)
-        target = target.to(self._device)
 
         if self._augmentation_transformations is not None:
             for agumentation_transformation in self._augmentation_transformations:
                 padded_sample, target = agumentation_transformation.transform_in_bulk(
                     [padded_sample, target]
                 )
+
+        padded_sample = torch.Tensor(padded_sample).unsqueeze(0).unsqueeze(0)
+        padded_sample = padded_sample.to(self._device)
+
+        target = torch.Tensor(target).unsqueeze(0)
+        target = target.to(self._device)
 
         return padded_sample, target, padding
 
