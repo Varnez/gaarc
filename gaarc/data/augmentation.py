@@ -21,7 +21,7 @@ class DataAugmentationTransformation(ABC):
 
     def transform(self, image: np.ndarray) -> np.ndarray:
         if random.random() <= self._chance_of_execution:
-            image = self._transformation(image)
+            image, _ = self._transformation(image)
 
         return image
 
