@@ -14,14 +14,12 @@ class DataAugmentationTransformation(ABC):
     def __init__(self, chance_of_execution: float = 1.0):
         self._chance_of_execution = chance_of_execution
 
-    @abc.abstractmethod
     def transform(self, image: np.ndarray) -> np.ndarray:
         if random.random() <= self._chance_of_execution:
             image = self._transformation(image)
 
         return image
 
-    @abc.abstractmethod
     def transform_in_bulk(self, images: list[np.ndarray]) -> list[np.ndarray]:
         transformed_images = []
         if random.random() <= self._chance_of_execution:
