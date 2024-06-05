@@ -47,6 +47,7 @@ class ARCDataset(Dataset):
         self._test_samples: list[np.ndarray] | None = None
         self._padding_height: int | None = None
         self._padding_width: int | None = None
+        self._augment_data: bool = True
         self._augmentation_transformations: (
             list[DataAugmentationTransformation] | None
         ) = augmentation_transformations
@@ -144,13 +145,22 @@ class ARCDataset(Dataset):
     def device(self) -> torch.device:
         return self._device
 
+    def activate_data_augmentation(self) -> None:
+        self._augment_data = True
+
+    def deactivate_data_augmentation(self) -> None:
+        self._augment_data = False
+
     def __len__(self):
         return len(self._contents)
 
     def __getitem__(self, idx):
         sample = self.samples[idx]
 
-        if self._augmentation_transformations is not None:
+        if (
+            self._augmentation_transformations is not None
+            and self._augment_data is True
+        ):
             for agumentation_transformation in self._augmentation_transformations:
                 sample = agumentation_transformation.transform(sample)
 
