@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+BORDER_TYPES = ("side", "corner", "point", "isolated")
+
 
 class ARCSample:
     def __init__(self, sample: np.ndarray, visualize_entity_detection: bool = False):
@@ -98,11 +100,18 @@ class Entity:
         self._entity_mask: np.ndarray = entity_mask
         self._entity: np.ndarray = sample * entity_mask
         self._values: dict[int, int] = dict()
+        self._border_pixels: dict[str, list[tuple[int, int]]] = {
+            border_type: [] for border_type in BORDER_TYPES
+        }
+        self._is_square: bool | None = None
+        self._is_rectangular: bool | None = None
 
         values, counts = np.unique(self._entity, return_counts=True)
         for value, count in zip(values, counts):
             if value != 0:
                 self._values[value] = count
+
+        self._detect_borders()
 
     @property
     def entity(self) -> np.ndarray:
@@ -126,3 +135,71 @@ class Entity:
             size += amount
 
         return size
+
+    @property
+    def is_square(self) -> bool:
+        if self._is_square is None:
+            if (
+                self.size == 1
+                or self.is_rectangular
+                and (
+                    (
+                        self._border_pixels["corner"][0][0]
+                        - self._border_pixels["corner"][-1][0]
+                        == self._border_pixels["corner"][0][1]
+                        - self._border_pixels["corner"][-1][1]
+                    )
+                )
+            ):
+                self._is_square = True
+            else:
+                self._is_square = False
+
+        return self._is_square
+
+    @property
+    def is_rectangular(self) -> bool:
+        if self._is_rectangular is None:
+            if (
+                len(self._border_pixels["corner"]) == 4
+                and len(self._border_pixels["point"]) == 0
+            ):
+                self._is_rectangular = True
+            else:
+                self._is_rectangular = False
+
+        return self._is_rectangular
+
+    def _detect_borders(self) -> None:
+
+        for x in range(self._entity_mask.shape[0]):
+            for y in range(self._entity_mask.shape[1]):
+                if self._entity_mask[x][y] == True:
+                    sides_to_the_outside = 0
+
+                    if x == 0 or (x != 0 and self._entity_mask[x - 1][y] != True):
+                        sides_to_the_outside += 1
+
+                    if y == 0 or (y != 0 and self._entity_mask[x][y - 1] != True):
+                        sides_to_the_outside += 1
+
+                    if x == self._entity_mask.shape[0] - 1 or (
+                        x < self._entity_mask.shape[0] - 1
+                        and self._entity_mask[x + 1][y] != True
+                    ):
+                        sides_to_the_outside += 1
+
+                    if y == self._entity_mask.shape[1] - 1 or (
+                        y < self._entity_mask.shape[1] - 1
+                        and self._entity_mask[x][y + 1] != True
+                    ):
+                        sides_to_the_outside += 1
+
+                    if sides_to_the_outside == 1:
+                        self._border_pixels["side"].append((x, y))
+                    elif sides_to_the_outside == 2:
+                        self._border_pixels["corner"].append((x, y))
+                    elif sides_to_the_outside == 3:
+                        self._border_pixels["point"].append((x, y))
+                    elif sides_to_the_outside == 4:
+                        self._border_pixels["isolated"].append((x, y))
