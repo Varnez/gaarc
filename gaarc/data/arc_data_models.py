@@ -67,14 +67,14 @@ class ARCSample:
 
             entity_mask = np.logical_or(entity_mask, returned_entity_mask)
 
-        if y != 0 and self._sample[x][y - 1] and entity_mask[x][y - 1] != True:
+        if y != 0 and self._sample[x][y - 1] != 0 and entity_mask[x][y - 1] != True:
             returned_entity_mask = self._flood_entity(x, y - 1, entity_mask)
 
             entity_mask = np.logical_or(entity_mask, returned_entity_mask)
 
         if (
             x < entity_mask.shape[0] - 1
-            and self._sample[x + 1][y]
+            and self._sample[x + 1][y] != 0
             and entity_mask[x + 1][y] != True
         ):
             returned_entity_mask = self._flood_entity(x + 1, y, entity_mask)
@@ -83,7 +83,7 @@ class ARCSample:
 
         if (
             y < entity_mask.shape[1] - 1
-            and self._sample[x][y + 1]
+            and self._sample[x][y + 1] != 0
             and entity_mask[x][y + 1] != True
         ):
             returned_entity_mask = self._flood_entity(x, y + 1, entity_mask)
