@@ -5,6 +5,8 @@ import numpy as np
 
 BORDER_TYPES = ("side", "corner", "point", "isolated")
 
+# pylint: disable=singleton-comparison
+
 
 class BaseEntity(ABC):
     def __init__(self, sample: np.ndarray, entity_mask: np.ndarray):
@@ -13,6 +15,7 @@ class BaseEntity(ABC):
         self._border_pixels: dict[str, list[tuple[int, int]]] = {
             border_type: [] for border_type in BORDER_TYPES
         }
+        self._mass_centre: tuple[float, float] | None = None
         self._is_square: bool | None = None
         self._is_rectangular: bool | None = None
 
@@ -30,6 +33,25 @@ class BaseEntity(ABC):
     @abstractmethod
     def size(self) -> int:
         pass
+
+    @property
+    def centre_of_mass(self) -> tuple[float, float]:
+        if self._mass_centre is None:
+            x_centre = 0.0
+            y_centre = 0.0
+
+            for x in range(self._entity_mask.shape[0] - 1):
+                for y in range(self._entity_mask.shape[1] - 1):
+                    if self._entity_mask[x][y] == True:
+                        x_centre += x_centre
+                        y_centre += y_centre
+
+            x_centre /= self.size
+            y_centre /= self.size
+
+            self._mass_centre = (x_centre, y_centre)
+
+        return self._mass_centre
 
     @property
     def is_square(self) -> bool:
