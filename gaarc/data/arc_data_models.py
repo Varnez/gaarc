@@ -3,12 +3,31 @@ from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 
+from gaarc.visualization.arc_visualization import plot_arc_sample
+
 BORDER_TYPES = ("side", "corner", "point", "isolated")
 
 # pylint: disable=singleton-comparison
 
 
 class BaseEntity(ABC):
+    """
+    Common parent class to the different kinds of entities.
+
+    It implements most functionality, excluding those which depends on how the inherent class is
+    holding certain specific ambits of its information.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+        Original arc sample in which the entity is taking place.
+    entity_mask : np.ndarray
+        Boolean two dimensional tensor which shares the same shape as the sample.
+        It marks the positions from the sample tensor in which the entity takes place with True,
+        False elsewhere.
+        The generation of this mask is done in the according ARCSample methods to generate entities.
+    """
+
     def __init__(self, sample: np.ndarray, entity_mask: np.ndarray):
         self._entity_mask: np.ndarray = entity_mask
         self._entity: np.ndarray = sample * entity_mask
@@ -120,8 +139,29 @@ class BaseEntity(ABC):
                     elif sides_to_the_outside == 4:
                         self._border_pixels["isolated"].append((x, y))
 
+    def plot(self) -> None:
+        """
+        Plots the entity (against the background of the original image) with the id mapped to their
+        corresponding colors as per the ARC canon.
+        """
+        plot_arc_sample(self.entity)
+
 
 class Entity(BaseEntity):
+    """
+    Entity that is composed by a single color, the basic conception of an entity.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+        Original arc sample in which the entity is taking place.
+    entity_mask : np.ndarray
+        Boolean two dimensional tensor which shares the same shape as the sample.
+        It marks the positions from the sample tensor in which the entity takes place with True,
+        False elsewhere.
+        The generation of this mask is done in the according ARCSample methods to generate entities.
+    """
+
     def __init__(self, sample: np.ndarray, entity_mask: np.ndarray):
         super().__init__(sample, entity_mask)
         self._size: int = np.sum(entity_mask)
@@ -143,6 +183,26 @@ class Entity(BaseEntity):
 
 
 class SuperEntity(BaseEntity):
+    """
+    An extension on the conception of the base Entities, formed by more than one color.
+
+    Thus, this class is able to combine multiple colors taking place subjacent to one another,
+    not being isolated by background (positions with value 0).
+
+    This sometimes, for samples which, for example, have a grid covering the whole image, can lead
+    to produce a super entity that is equal to the initial sample. So, tread carefully.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+        Original arc sample in which the entity is taking place.
+    entity_mask : np.ndarray
+        Boolean two dimensional tensor which shares the same shape as the sample.
+        It marks the positions from the sample tensor in which the entity takes place with True,
+        False elsewhere.
+        The generation of this mask is done in the according ARCSample methods to generate entities.
+    """
+
     def __init__(self, sample: np.ndarray, entity_mask: np.ndarray):
         super().__init__(sample, entity_mask)
         self._values: dict[int, int] = dict()
@@ -169,6 +229,24 @@ class SuperEntity(BaseEntity):
 
 
 class ARCSample:
+    """
+    Class to expand our understanding of individual samples within the ARC Dataset.
+
+    It allows for the detection and generation of entities instances from which multiple properties
+    can be extracted.
+
+    Also it provides some tool methods such as plotting automatically applying the color mapping
+    that changes each id for its canonical color within the ARC.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+        ARC sample read as a numpy array.
+    visualize_entity_detection: bool
+        This activates the debugging functionality that plots each step of the entity flooding,
+        to check how it is taking place. Cool stuff.
+    """
+
     def __init__(self, sample: np.ndarray, visualize_entity_detection: bool = False):
         self._sample: np.ndarray = sample
         self._visualize_entity_detection: bool = visualize_entity_detection
@@ -315,3 +393,9 @@ class ARCSample:
             entity_mask = np.logical_or(entity_mask, returned_entity_mask)
 
         return entity_mask
+
+    def plot(self) -> None:
+        """
+        Plots the image with the id mapped to their corresponding colors as per the ARC canon.
+        """
+        plot_arc_sample(self.sample)
