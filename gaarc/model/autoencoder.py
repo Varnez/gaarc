@@ -40,7 +40,7 @@ class UNETAutoEncoder(pl.LightningModule):
     def model(self) -> UNet:
         return self._model
 
-    def forward(self, image):
+    def forward(self, image):  # pylint: disable=arguments-differ
         mask = self.model(image)
 
         return mask
@@ -129,19 +129,25 @@ class UNETAutoEncoder(pl.LightningModule):
 
             self.log_dict(metrics, prog_bar=True)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(
+        self, batch, batch_idx
+    ):  # pylint: disable=arguments-differ, unused-argument
         return self.step(batch, "train")
 
     def on_training_epoch_end(self):
         return self.on_epoch_end("train")
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(
+        self, batch, batch_idx
+    ):  # pylint: disable=arguments-differ, unused-argument
         return self.step(batch, "valid")
 
     def on_validation_epoch_end(self):
         return self.on_epoch_end("valid")
 
-    def test_step(self, batch, batch_idx):
+    def test_step(
+        self, batch, batch_idx
+    ):  # pylint: disable=arguments-differ, unused-argument
         return self.step(batch, "test")
 
     def on_test_epoch_end(self):
