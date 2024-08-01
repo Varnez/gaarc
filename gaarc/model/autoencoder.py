@@ -42,6 +42,7 @@ class UNetAutoEncoder(pl.LightningModule):
 
         self._input_channels: int = input_channels
         self._model_layer_depth: int = model_layer_depth
+        self.epochs_trained: int = 0
         self.step_outputs: list = []
 
         self._model: nn.Module = UNet(
@@ -145,7 +146,8 @@ class UNetAutoEncoder(pl.LightningModule):
                 f"{stage}_dataset_iou": dataset_iou,
             }
 
-            print(f"Epoch {self.epoch_trained:02d} completed: {metrics}")
+            print(f"Epoch {self.epochs_trained:02d} completed: {metrics}")
+            self.epochs_trained += 1
 
             self.step_outputs.clear()
 
