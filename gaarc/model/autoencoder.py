@@ -7,7 +7,29 @@ import torch.nn.functional as F
 from gaarc.model.unet import UNet
 
 
-class UNETAutoEncoder(pl.LightningModule):
+class UNetAutoEncoder(pl.LightningModule):
+    """
+    Pytorch lightning wrapper for the AutoEncoder application of the U-Net model.
+    It provides an interface for training and inference.
+
+    Shares it's input arguments with the UNet model, and it will initialise
+    the model.
+
+    Parameters
+    ----------
+     input_channels : int
+        Size of the channel dimension of the input data.
+        Can be 3 for rgb images or 1 for data shaped like a matrix.
+    output_channels : int
+        Size of the channel dimension of the output data.
+        This is analog to number of classes predicted by the last convolutional layer.
+    encoder_first_block_channels: int
+        Size of the channel dimension in the first processing block.
+        The rest of the channels are inferred from this initial value.
+    model_depth: int
+        Amount of blocks the encoder and the decoder will be composed of.
+    """
+
     def __init__(
         self,
         input_channels: int,

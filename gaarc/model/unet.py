@@ -12,16 +12,16 @@ class UNet(nn.Module):
     Parameters
     ----------
     input_channels : int
-            Size of the channel dimension of the input data.
-            Can be 3 for rgb images or 1 for data shaped like a matrix.
+        Size of the channel dimension of the input data.
+        Can be 3 for rgb images or 1 for data shaped like a matrix.
     output_channels : int
-            Size of the channel dimension of the output data.
-            This is analog to number of classes predicted by the last convolutional layer.
+        Size of the channel dimension of the output data.
+        This is analog to number of classes predicted by the last convolutional layer.
     encoder_first_block_channels: int
-            Size of the channel dimension in the first processing block.
-            The rest of the channels are inferred from this initial value.
+        Size of the channel dimension in the first processing block.
+        The rest of the channels are inferred from this initial value.
     model_depth: int
-            Amount of blocks the encoder and the decoder will be composed of.
+        Amount of blocks the encoder and the decoder will be composed of.
     """
 
     def __init__(
