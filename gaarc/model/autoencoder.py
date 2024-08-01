@@ -158,7 +158,7 @@ class UNetAutoEncoder(pl.LightningModule):
     ):  # pylint: disable=arguments-differ, unused-argument
         return self.step(batch, "train")
 
-    def on_training_epoch_end(self):
+    def on_train_epoch_end(self):
         return self.on_epoch_end("train")
 
     def validation_step(
