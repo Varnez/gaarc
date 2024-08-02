@@ -43,7 +43,7 @@ class UNetAutoEncoder(pl.LightningModule):
         self._input_channels: int = input_channels
         self._model_layer_depth: int = model_layer_depth
         self.epochs_trained: int = 0
-        self.step_outputs: list = []
+        self.step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
 
         self._model: nn.Module = UNet(
             input_channels,
@@ -107,22 +107,22 @@ class UNetAutoEncoder(pl.LightningModule):
             "fn": fn,
             "tn": tn,
         }
-        self.step_outputs.append(output_metrics)
+        self.step_outputs[stage].append(output_metrics)
 
         return loss
 
     def on_epoch_end(self, stage):
         total_loss = 0
-        iter_count = len(self.step_outputs)
+        iter_count = len(self.step_outputs[stage])
 
         for idx in range(iter_count):
-            total_loss += self.step_outputs[idx]["loss"].item()
+            total_loss += self.step_outputs[stage][idx]["loss"].item()
 
         if self.step_outputs:
-            tp = torch.cat([output["tp"] for output in self.step_outputs])
-            fp = torch.cat([output["fp"] for output in self.step_outputs])
-            fn = torch.cat([output["fn"] for output in self.step_outputs])
-            tn = torch.cat([output["tn"] for output in self.step_outputs])
+            tp = torch.cat([output["tp"] for output in self.step_outputs[stage]])
+            fp = torch.cat([output["fp"] for output in self.step_outputs[stage]])
+            fn = torch.cat([output["fn"] for output in self.step_outputs[stage]])
+            tn = torch.cat([output["tn"] for output in self.step_outputs[stage]])
 
             per_image_iou = smp.metrics.iou_score(
                 tp, fp, fn, tn, reduction="micro-imagewise"
@@ -149,7 +149,7 @@ class UNetAutoEncoder(pl.LightningModule):
             print(f"Epoch {self.epochs_trained:02d} completed: {metrics}")
             self.epochs_trained += 1
 
-            self.step_outputs.clear()
+            self.step_outputs[stage].clear()
 
             self.log_dict(metrics, prog_bar=True)
 
