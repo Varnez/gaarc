@@ -146,8 +146,9 @@ class UNetAutoEncoder(pl.LightningModule):
                 f"{stage}_dataset_iou": dataset_iou,
             }
 
-            print(f"Epoch {self.epochs_trained:02d} completed: {metrics}")
-            self.epochs_trained += 1
+            print(f"Epoch {self.epochs_trained:02d} {stage}: {metrics}")
+            if stage == "train":
+                self.epochs_trained += 1
 
             self.step_outputs[stage].clear()
 
