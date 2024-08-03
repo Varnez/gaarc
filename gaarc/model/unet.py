@@ -17,10 +17,10 @@ class UNet(nn.Module):
     output_channels : int
         Size of the channel dimension of the output data.
         This is analog to number of classes predicted by the last convolutional layer.
-    encoder_first_block_channels: int
+    encoder_first_block_channels : int
         Size of the channel dimension in the first processing block.
         The rest of the channels are inferred from this initial value.
-    model_depth: int
+    model_depth : int
         Amount of blocks the encoder and the decoder will be composed of.
     """
 
