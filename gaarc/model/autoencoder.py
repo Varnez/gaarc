@@ -179,5 +179,5 @@ class UNetAutoEncoder(pl.LightningModule):
     def on_test_epoch_end(self):
         return self.on_epoch_end("test")
 
-    def configure_optimizers(self, learning_rate=0.00001):
+    def configure_optimizers(self, learning_rate=0.0001):
         return torch.optim.Adam(self.parameters(), lr=learning_rate)
