@@ -38,6 +38,7 @@ class UNetAutoEncoder(pl.LightningModule):
         number_of_classes: int,
         encoder_first_block_channels: int,
         model_layer_depth: int,
+        initial_learning_rate: float = 0.0001,
         verbose_training: bool = False,
     ):
         super().__init__()
@@ -45,6 +46,7 @@ class UNetAutoEncoder(pl.LightningModule):
 
         self._input_channels: int = input_channels
         self._model_layer_depth: int = model_layer_depth
+        self._initial_learning_rate = initial_learning_rate
         self._verbose_training: bool = verbose_training
         self._epochs_trained: int = 0
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
@@ -179,5 +181,5 @@ class UNetAutoEncoder(pl.LightningModule):
     def on_test_epoch_end(self):
         return self.on_epoch_end("test")
 
-    def configure_optimizers(self, learning_rate=0.0001):
-        return torch.optim.Adam(self.parameters(), lr=learning_rate)
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self._initial_learning_rate)
