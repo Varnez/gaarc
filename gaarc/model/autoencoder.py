@@ -27,6 +27,8 @@ class UNetAutoEncoder(pl.LightningModule):
         The rest of the channels are inferred from this initial value.
     model_depth : int
         Amount of blocks the encoder and the decoder will be composed of.
+    initial_learning_rate : float
+        Initial value the optimizer's learning rate will be set to.
     verbose_training : bool
         If True, will print information through the terminal during training.
         By default, False.
