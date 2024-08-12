@@ -147,6 +147,7 @@ class Encoder(nn.Module):
                 n_channels * 2,
                 upsample=False,
                 downsample=False,
+                use_batch_norm=False,
             )
         )
 
