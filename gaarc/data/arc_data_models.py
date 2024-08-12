@@ -34,7 +34,7 @@ class BaseEntity(ABC):
         self._border_pixels: dict[str, list[tuple[int, int]]] = {
             border_type: [] for border_type in BORDER_TYPES
         }
-        self._mass_centre: tuple[float, float] | None = None
+        self._center_of_mass: tuple[float, float] | None = None
         self._is_square: bool | None = None
         self._is_rectangular: bool | None = None
 
@@ -54,23 +54,23 @@ class BaseEntity(ABC):
         pass
 
     @property
-    def centre_of_mass(self) -> tuple[float, float]:
-        if self._mass_centre is None:
-            x_centre = 0.0
-            y_centre = 0.0
+    def center_of_mass(self) -> tuple[float, float]:
+        if self._center_of_mass is None:
+            x_center = 0.0
+            y_center = 0.0
 
             for x in range(self._entity_mask.shape[0] - 1):
                 for y in range(self._entity_mask.shape[1] - 1):
                     if self._entity_mask[x][y] == True:
-                        x_centre += x_centre
-                        y_centre += y_centre
+                        x_center += x_center
+                        y_center += y_center
 
-            x_centre /= self.size
-            y_centre /= self.size
+            x_center /= self.size
+            y_center /= self.size
 
-            self._mass_centre = (x_centre, y_centre)
+            self._center_of_mass = (x_center, y_center)
 
-        return self._mass_centre
+        return self._center_of_mass
 
     @property
     def is_square(self) -> bool:
@@ -244,7 +244,7 @@ class ARCSample:
         ARC sample read as a numpy array.
     visualize_entity_detection: bool
         This activates the debugging functionality that plots each step of the entity flooding,
-        to check how it is taking place. Cool stuff.
+        to check how it is taking place. Cool stuff
     """
 
     def __init__(self, sample: np.ndarray, visualize_entity_detection: bool = False):
