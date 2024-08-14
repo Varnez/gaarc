@@ -3,6 +3,8 @@ import segmentation_models_pytorch as smp  # type: ignore[import-untyped]
 import torch
 import torch.nn as nn
 
+from gaarc.data.arc_data_models import ARCSample
+from gaarc.model.secondary_task_modules import STM, Loss
 from gaarc.model.unet import UNet
 
 
@@ -48,8 +50,9 @@ class UNetAutoEncoder(pl.LightningModule):
 
         self._input_channels: int = input_channels
         self._model_layer_depth: int = model_layer_depth
-        self._initial_learning_rate = initial_learning_rate
+        self._initial_learning_rate: float = initial_learning_rate
         self._verbose_training: bool = verbose_training
+        self._secondary_task_modules: list[STM] = []
         self._epochs_trained: int = 0
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
 
@@ -82,11 +85,8 @@ class UNetAutoEncoder(pl.LightningModule):
 
         prediction = self.forward(sample)
 
-        # Padding removal
         padding = batch[2]
-        prediction_without_padding = prediction[
-            :, :, padding[0] : -padding[1], padding[2] : -padding[3]
-        ]
+        prediction_without_padding = self._crop_tensor(prediction, padding)
 
         loss = self.loss_fn(prediction_without_padding, target)
 
@@ -103,6 +103,21 @@ class UNetAutoEncoder(pl.LightningModule):
             "fn": fn,
             "tn": tn,
         }
+
+        if stage == "train" and self._secondary_task_modules:
+            sample = ARCSample(sample.detach().cpu().numpy())
+            secondary_task_losses: list[Loss] = []
+
+            for secondary_task_module in self._secondary_task_modules:
+                secondary_task_loss = secondary_task_module.train_on_task(sample)
+
+                output_metrics.update(
+                    {f"{secondary_task_module.name} loss": secondary_task_loss}
+                )
+
+            secondary_tasks_combined_loss = sum(secondary_task_losses)
+            loss += secondary_tasks_combined_loss
+
         self._step_outputs[stage].append(output_metrics)
 
         return loss
@@ -155,6 +170,20 @@ class UNetAutoEncoder(pl.LightningModule):
             if stage == "train":
                 self._epochs_trained += 1
 
+                if self._secondary_task_modules:
+                    for secondary_task_module in self._secondary_task_modules:
+                        secondary_task_loss_name = f"{secondary_task_module.name} loss"
+                        secondary_task_loss = 0
+
+                        for step_output in self._step_outputs[stage]:
+                            secondary_task_loss += step_output[
+                                secondary_task_loss_name
+                            ].item()
+
+                        metrics.update(
+                            {secondary_task_loss_name: secondary_task_loss / iter_count}
+                        )
+
             self._step_outputs[stage].clear()
 
             self.log_dict(metrics, prog_bar=True)
@@ -182,6 +211,62 @@ class UNetAutoEncoder(pl.LightningModule):
 
     def on_test_epoch_end(self):
         return self.on_epoch_end("test")
+
+    def add_secondary_task_module(
+        self, secondary_task_module: STM, sample_example: torch.Tensor, **kwargs
+    ) -> None:
+        """
+        Adds an STM class to the secondary tasks to be used during trained.
+
+        This method expects the class, not an initialized instance.
+        It will be initialized based on the architecture of the autoencoder and the
+        size of the provided sample.
+
+        Parameters
+        ----------
+        secondary_task_module : STM
+            Uninitialized STM
+        """
+        latent_space_size = self.model.encoder(sample_example).shape[1]
+
+        secondary_task_module_instance = secondary_task_module(
+            self.model.encoder, latent_space_size, **kwargs
+        )
+
+        self._secondary_task_modules.append(secondary_task_module_instance)
+
+    def _crop_tensor(
+        self, tensor: torch.Tensor, cropping_per_side: tuple[int, int, int, int]
+    ) -> torch.Tensor:
+        """
+        Crops a 4D tensor (representing a batch of images) [B, C, H, W], selecting
+        how much to remove from each side.
+
+        The values provided in the tuple cropping_per_side represents, in respective
+        order, top, bottom, left, right.
+
+        Parameters
+        ----------
+        tensor : torch.Tensor
+            Tensor to crop.
+        cropping_per_side : tuple[int, int, int, int]
+            How much positions crop from each side, in respective order, in respective
+            from order, top, bottom, left, right.
+
+
+        Returns
+        -------
+        torch.Tensor
+            Cropped tensor.
+        """
+        cropped_tensor = tensor[
+            :,
+            :,
+            cropping_per_side[0] : -cropping_per_side[1],
+            cropping_per_side[2] : -cropping_per_side[3],
+        ]
+
+        return cropped_tensor
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self._initial_learning_rate)
