@@ -170,11 +170,13 @@ class ARCDataset(Dataset):
 
         target = sample
 
-        padded_sample = torch.Tensor(padded_sample).unsqueeze(0).unsqueeze(0)
-        padded_sample = padded_sample.to(self._device)
+        padded_sample = (
+            torch.tensor(padded_sample, device=self._device, dtype=torch.float)
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
 
-        target = torch.Tensor(target).unsqueeze(0)
-        target = target.to(self._device)
+        target = torch.tensor(target, device=self._device).unsqueeze(0)
 
         return padded_sample, target, padding
 
