@@ -163,9 +163,10 @@ class UNetAutoEncoder(pl.LightningModule):
                 f"{stage}_dataset_iou": dataset_iou.item(),
             }
 
-            if stage == "train":
+            if stage == "valid":
                 self._epochs_trained += 1
 
+            if stage == "train":
                 if self._secondary_task_modules:
                     for secondary_task_module in self._secondary_task_modules:
                         secondary_task_loss_name = f"{secondary_task_module.name} loss"
