@@ -58,7 +58,7 @@ class EntityMassCentre(STM):
 
         self.to(encoder.device)
 
-    def get_input(self, sample: ARCSample) -> list[torch.Tensor[int]]:
+    def get_input(self, sample: ARCSample) -> list[torch.Tensor]:
         inputs: list[torch.Tensor[int]] = [
             torch.Tensor(entity.entity, device=self.device)
             for entity in sample.entities
@@ -66,7 +66,7 @@ class EntityMassCentre(STM):
 
         return inputs
 
-    def get_target(self, sample: ARCSample) -> list[torch.Tensor[float]]:
+    def get_target(self, sample: ARCSample) -> list[torch.Tensor]:
         targets: list[torch.Tensor[float]] = [
             torch.Tensor(entity.center_of_mass, device=self.device)
             for entity in sample.entities
