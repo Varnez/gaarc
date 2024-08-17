@@ -227,7 +227,7 @@ class UNetAutoEncoder(pl.LightningModule):
         secondary_task_module : STM
             Uninitialized STM
         """
-        latent_space_size = self.model.encoder(sample_example).shape[1]
+        latent_space_size = self.model.encoder(sample_example).shape[0][1]
 
         secondary_task_module_instance = secondary_task_module(
             self.model.encoder, latent_space_size, **kwargs
