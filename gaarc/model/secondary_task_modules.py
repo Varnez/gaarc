@@ -104,7 +104,7 @@ class EntityMassCentre(STM):
 
     def train_on_task(self, sample: ARCSample) -> Loss:
         if sample.entities:
-            idx = randint(0, len(sample.entities))
+            idx = randint(0, len(sample.entities) - 1)
 
             input_ = self.get_input(sample, idx)
             target = self.get_target(sample, idx)
