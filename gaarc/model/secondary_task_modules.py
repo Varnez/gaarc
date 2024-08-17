@@ -104,14 +104,21 @@ class EntityMassCentre(STM):
         return features
 
     def train_on_task(self, sample: ARCSample) -> Loss:
-        idx = randint(0, len(sample.entities))
+        if sample.entities:
+            idx = randint(0, len(sample.entities))
 
-        input_ = self.get_input(sample, idx)
-        target = self.get_target(sample, idx)
+            input_ = self.get_input(sample, idx)
+            target = self.get_target(sample, idx)
 
-        features = self._encoder(input_)[0]
-        prediction = self.forward(features)
+            features = self._encoder(input_)[0]
+            prediction = self.forward(features)
 
-        loss = self._loss_function(prediction, target)
+            loss = self._loss_function(prediction, target)
+
+        else:
+            self._loss_function(
+                torch.tensor([0.0], device=self._device, dtype=torch.float),
+                torch.tensor([0.0], device=self._device, dtype=torch.float),
+            )
 
         return loss
