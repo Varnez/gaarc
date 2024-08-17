@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from random import randint
 from typing import Any
 
 import torch
 from torch import nn
-from torch.nn import BatchNorm1d, Linear
+from torch.nn import BatchNorm1d, Linear, Sequential
 from torch.nn.modules.loss import MSELoss
 from torch.nn.modules.loss import _Loss as Loss
 
@@ -17,10 +18,6 @@ class STM(ABC, nn.Module):
     @property
     def name(self) -> str:
         return self._name
-
-    @abstractmethod
-    def get_target(self, sample: ARCSample) -> Any:
-        pass
 
     @abstractmethod
     def forward(self, feature_vector: torch.Tensor) -> torch.Tensor:
@@ -37,6 +34,14 @@ class STM(ABC, nn.Module):
 
 
 class EntityMassCentre(STM):
+    """
+    Secondary task that will aim to predict the center of mass of a random entity within
+    the provided sample.
+
+    The initial intention was to go through all entities within the image, but that lead
+    to memory issues, given the big amount of entities a single sample can possibly have.
+    """
+
     _name: str = "Entity's Mass Center"
     _loss_function: Loss = MSELoss()  # type: ignore[assignment]
 
@@ -47,35 +52,46 @@ class EntityMassCentre(STM):
         hidden_layer_size: int,
         use_batch_norm: bool,
     ):
+        super().__init__()
         self._encoder = encoder
         self._use_batch_norm = use_batch_norm
 
-        self._x_classifier = Linear(hidden_layer_size, 1)
-        self._y_classifier = Linear(hidden_layer_size, 1)
+        self._x_classifier = Sequential(
+            Linear(latent_space_size, hidden_layer_size),
+            Linear(hidden_layer_size, 1),
+        )
+        self._y_classifier = Sequential(
+            Linear(latent_space_size, hidden_layer_size),
+            Linear(hidden_layer_size, 1),
+        )
 
         if self._use_batch_norm:
             self.batch_norm = BatchNorm1d(latent_space_size)
 
-        self.to(encoder.device)
+        self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def get_input(self, sample: ARCSample) -> list[torch.Tensor]:
-        inputs: list[torch.Tensor[int]] = [
-            torch.Tensor(entity.entity, device=self.device)
-            for entity in sample.entities
-        ]
+    def get_input(self, sample: ARCSample, idx: int) -> torch.Tensor:
+        entity = sample.entities[idx]
 
-        return inputs
+        input_ = (
+            torch.tensor(entity.entity, device=self._device, dtype=torch.float)
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
 
-    def get_target(self, sample: ARCSample) -> list[torch.Tensor]:
-        targets: list[torch.Tensor[float]] = [
-            torch.Tensor(entity.center_of_mass, device=self.device)
-            for entity in sample.entities
-        ]
+        return input_
 
-        return targets
+    def get_target(self, sample: ARCSample, idx: int) -> torch.Tensor:
+        entity = sample.entities[idx]
+
+        target = torch.tensor(
+            entity.center_of_mass, device=self._device, dtype=torch.float
+        ).unsqueeze(1)
+
+        return target
 
     def forward(self, feature_vector: torch.Tensor) -> torch.Tensor:
-        features = torch.flatten(feature_vector)
+        features = torch.flatten(feature_vector).unsqueeze(0)
 
         if self._use_batch_norm:
             features = self.batch_norm(features)
@@ -84,20 +100,18 @@ class EntityMassCentre(STM):
         y_features = self._y_classifier(features)
 
         features = torch.cat((x_features, y_features))
+
         return features
 
     def train_on_task(self, sample: ARCSample) -> Loss:
-        inputs: list[torch.Tensor[int]] = self.get_input(sample)
-        targets: list[torch.Tensor[float]] = self.get_target(sample)
+        idx = randint(0, len(sample.entities))
 
-        losses: list[Loss] = []
-        for input_, target in zip(inputs, targets):
-            features = self._encoder(input_)
-            prediction = self.forward(features)
+        input_ = self.get_input(sample, idx)
+        target = self.get_target(sample, idx)
 
-            loss = self._loss_function(prediction, target)
-            losses.append(loss)
+        features = self._encoder(input_)[0]
+        prediction = self.forward(features)
 
-        loss = sum(losses)
+        loss = self._loss_function(prediction, target)
 
         return loss
