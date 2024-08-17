@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from random import randint
-from typing import Any
 
 import torch
 from torch import nn
