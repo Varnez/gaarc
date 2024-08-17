@@ -43,6 +43,7 @@ class UNetAutoEncoder(pl.LightningModule):
         encoder_first_block_channels: int,
         model_layer_depth: int,
         initial_learning_rate: float = 0.0001,
+        secondary_tasks_loss_scale: float = 0.1,
         verbose_training: bool = False,
     ):
         super().__init__()
@@ -51,6 +52,7 @@ class UNetAutoEncoder(pl.LightningModule):
         self._input_channels: int = input_channels
         self._model_layer_depth: int = model_layer_depth
         self._initial_learning_rate: float = initial_learning_rate
+        self._secondary_tasks_loss_scale = secondary_tasks_loss_scale
         self._verbose_training: bool = verbose_training
         self._secondary_task_modules: nn.ModuleList = nn.ModuleList([])
         self._epochs_trained: int = 0
@@ -118,6 +120,8 @@ class UNetAutoEncoder(pl.LightningModule):
                 secondary_task_losses.append(secondary_task_loss)
 
             secondary_tasks_combined_loss = sum(secondary_task_losses)
+            secondary_tasks_combined_loss *= self._secondary_tasks_loss_scale
+
             loss += secondary_tasks_combined_loss
 
         self._step_outputs[stage].append(output_metrics)
