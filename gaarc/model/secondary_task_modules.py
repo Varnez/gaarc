@@ -115,7 +115,7 @@ class EntityMassCentre(STM):
             loss = self._loss_function(prediction, target)
 
         else:
-            self._loss_function(
+            loss = self._loss_function(
                 torch.tensor([0.0], device=self._device, dtype=torch.float),
                 torch.tensor([0.0], device=self._device, dtype=torch.float),
             )
