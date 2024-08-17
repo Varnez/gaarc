@@ -121,6 +121,7 @@ class UNetAutoEncoder(pl.LightningModule):
 
             secondary_tasks_combined_loss = sum(secondary_task_losses)
             secondary_tasks_combined_loss *= self._secondary_tasks_loss_scale
+            secondary_tasks_combined_loss /= len(self._secondary_task_modules)
 
             loss += secondary_tasks_combined_loss
 
