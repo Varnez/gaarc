@@ -52,7 +52,7 @@ class UNetAutoEncoder(pl.LightningModule):
         self._model_layer_depth: int = model_layer_depth
         self._initial_learning_rate: float = initial_learning_rate
         self._verbose_training: bool = verbose_training
-        self._secondary_task_modules: list[STM] = []
+        self._secondary_task_modules: nn.ModuleList = nn.ModuleList([])
         self._epochs_trained: int = 0
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
 
@@ -105,7 +105,7 @@ class UNetAutoEncoder(pl.LightningModule):
         }
 
         if stage == "train" and self._secondary_task_modules:
-            sample = ARCSample(sample.detach().cpu().numpy())
+            sample = ARCSample(sample.detach().cpu().numpy()[0][0])
             secondary_task_losses: list[Loss] = []
 
             for secondary_task_module in self._secondary_task_modules:
@@ -114,6 +114,8 @@ class UNetAutoEncoder(pl.LightningModule):
                 output_metrics.update(
                     {f"{secondary_task_module.name} loss": secondary_task_loss}
                 )
+
+                secondary_task_losses.append(secondary_task_loss)
 
             secondary_tasks_combined_loss = sum(secondary_task_losses)
             loss += secondary_tasks_combined_loss
@@ -149,23 +151,13 @@ class UNetAutoEncoder(pl.LightningModule):
 
             metrics = {
                 f"{stage}_loss": total_loss / iter_count,
-                f"{stage}_precision": precision,
-                f"{stage}_recall": recall,
-                f"{stage}_accuracy": accuracy,
-                f"{stage}_f1_score": f1_score,
-                f"{stage}_per_image_iou": per_image_iou,
-                f"{stage}_dataset_iou": dataset_iou,
+                f"{stage}_precision": precision.item(),
+                f"{stage}_recall": recall.item(),
+                f"{stage}_accuracy": accuracy.item(),
+                f"{stage}_f1_score": f1_score.item(),
+                f"{stage}_per_image_iou": per_image_iou.item(),
+                f"{stage}_dataset_iou": dataset_iou.item(),
             }
-
-            if self._verbose_training:
-                if stage == "train" or stage == "valid":
-                    if stage == "train":
-                        print_color = "\033[94m"
-                    elif stage == "valid":
-                        print_color = "\033[92m"
-                print(
-                    f"{print_color}Epoch {self._epochs_trained:02d} {stage}: {metrics}"
-                )
 
             if stage == "train":
                 self._epochs_trained += 1
@@ -183,6 +175,16 @@ class UNetAutoEncoder(pl.LightningModule):
                         metrics.update(
                             {secondary_task_loss_name: secondary_task_loss / iter_count}
                         )
+
+            if self._verbose_training:
+                if stage == "train" or stage == "valid":
+                    if stage == "train":
+                        print_color = "\033[94m"
+                    elif stage == "valid":
+                        print_color = "\033[92m"
+                print(
+                    f"{print_color}Epoch {self._epochs_trained:02d} {stage}: {metrics}"
+                )
 
             self._step_outputs[stage].clear()
 

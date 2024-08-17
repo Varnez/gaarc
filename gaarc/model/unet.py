@@ -70,10 +70,10 @@ class Decoder(nn.Module):
                 f"layer_depth is smaller than 2 ({layer_depth}), which is the minimum possible."
             )
 
-        decoder_blocks = []
+        self.blocks: nn.ModuleList = nn.ModuleList([])
         n_channels = first_block_channels
         for _ in range(1, layer_depth):
-            decoder_blocks.append(
+            self.blocks.append(
                 Block(
                     n_channels,
                     n_channels // 2,
@@ -83,8 +83,6 @@ class Decoder(nn.Module):
                 )
             )
             n_channels //= 2
-
-        self.blocks = nn.ModuleList(decoder_blocks)
 
         self.head = nn.ConvTranspose2d(
             n_channels, output_channels, kernel_size=1, stride=1
@@ -116,8 +114,8 @@ class Encoder(nn.Module):
                 f"layer_depth is smaller than 2 ({layer_depth}), which is the minimum possible."
             )
 
-        encoder_blocks = []
-        encoder_blocks.append(
+        self.blocks: nn.ModuleList = nn.ModuleList([])
+        self.blocks.append(
             Block(
                 input_channels,
                 first_block_channels,
@@ -129,7 +127,7 @@ class Encoder(nn.Module):
 
         n_channels = first_block_channels
         for _ in range(1, layer_depth - 1):
-            encoder_blocks.append(
+            self.blocks.append(
                 Block(
                     n_channels,
                     n_channels * 2,
@@ -140,7 +138,7 @@ class Encoder(nn.Module):
             )
             n_channels *= 2
 
-        encoder_blocks.append(
+        self.blocks.append(
             Block(
                 n_channels,
                 n_channels * 2,
@@ -150,8 +148,6 @@ class Encoder(nn.Module):
                 use_batch_norm=False,
             )
         )
-
-        self.blocks = nn.ModuleList(encoder_blocks)
 
     def forward(self, features: torch.Tensor):
         skip_connections = []
