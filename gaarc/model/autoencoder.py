@@ -55,7 +55,7 @@ class UNetAutoEncoder(pl.LightningModule):
         self._secondary_tasks_loss_scale = secondary_tasks_loss_scale
         self._verbose_training: bool = verbose_training
         self._secondary_task_modules: nn.ModuleList = nn.ModuleList([])
-        self._epochs_trained: int = 0
+        self._epochs_trained: int = -1
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
 
         self._model: nn.Module = UNet(
