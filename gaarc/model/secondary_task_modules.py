@@ -7,7 +7,7 @@ from torch.nn import BatchNorm1d, Linear, Sequential
 from torch.nn.modules.loss import MSELoss
 from torch.nn.modules.loss import _Loss as Loss
 
-from gaarc.data.arc_data_models import ARCSample
+from gaarc.data.arc_data_models import ARC_ENTITY_UNIQUE_COLORS, ARCSample
 
 
 class STM(ABC, nn.Module):
@@ -105,6 +105,84 @@ class EntityMassCentre(STM):
     def train_on_task(self, sample: ARCSample) -> Loss:
         if sample.entities:
             idx = randint(0, len(sample.entities) - 1)
+
+            input_ = self.get_input(sample, idx)
+            target = self.get_target(sample, idx)
+
+            features = self._encoder(input_)[0]
+            prediction = self.forward(features)
+
+            loss = self._loss_function(prediction, target)
+
+        else:
+            loss = self._loss_function(
+                torch.tensor([0.0], device=self._device, dtype=torch.float),
+                torch.tensor([0.0], device=self._device, dtype=torch.float),
+            )
+
+        return loss
+
+
+class SuperEntityColors(STM):
+    _name: str = "Super Entity's Colors"
+    _loss_function: Loss = MSELoss()  # type: ignore[assignment]
+
+    def __init__(
+        self,
+        encoder: nn.Module,
+        latent_space_size: int,
+        hidden_layer_size: int,
+        use_batch_norm: bool,
+    ):
+        super().__init__()
+        self._encoder = encoder
+        self._use_batch_norm = use_batch_norm
+
+        self._classifier = Sequential(
+            Linear(latent_space_size, hidden_layer_size),
+            Linear(hidden_layer_size, 1),
+        )
+
+        if self._use_batch_norm:
+            self.batch_norm = BatchNorm1d(latent_space_size)
+
+        self._device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    def get_input(self, sample: ARCSample, idx: int) -> torch.Tensor:
+        super_entity = sample.super_entities[idx]
+
+        input_ = (
+            torch.tensor(super_entity.entity, device=self._device, dtype=torch.float)
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+
+        return input_
+
+    def get_target(self, sample: ARCSample, idx: int) -> torch.Tensor:
+        super_entity = sample.super_entities[idx]
+
+        target = torch.tensor(
+            [len(super_entity.colors) / ARC_ENTITY_UNIQUE_COLORS],
+            device=self._device,
+            dtype=torch.float,
+        ).unsqueeze(1)
+
+        return target
+
+    def forward(self, feature_vector: torch.Tensor) -> torch.Tensor:
+        features = torch.flatten(feature_vector).unsqueeze(0)
+
+        if self._use_batch_norm:
+            features = self.batch_norm(features)
+
+        features = self._classifier(features)
+
+        return features
+
+    def train_on_task(self, sample: ARCSample) -> Loss:
+        if sample.super_entities:
+            idx = randint(0, len(sample.super_entities) - 1)
 
             input_ = self.get_input(sample, idx)
             target = self.get_target(sample, idx)

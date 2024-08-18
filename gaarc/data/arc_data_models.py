@@ -6,6 +6,7 @@ import numpy as np
 from gaarc.visualization.arc_visualization import plot_arc_sample
 
 BORDER_TYPES = ("side", "corner", "point", "isolated")
+ARC_ENTITY_UNIQUE_COLORS = 9
 
 # pylint: disable=singleton-comparison
 
