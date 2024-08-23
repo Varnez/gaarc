@@ -168,17 +168,11 @@ class ARCDataset(Dataset):
             sample, self._padding_height, self._padding_width, -1
         )
 
-        target = sample
+        padded_sample = torch.tensor(
+            padded_sample, device=self._device, dtype=torch.float
+        ).unsqueeze(0)
 
-        padded_sample = (
-            torch.tensor(padded_sample, device=self._device, dtype=torch.float)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
-
-        target = torch.tensor(target, device=self._device).unsqueeze(0)
-
-        return padded_sample, target, padding
+        return padded_sample, torch.tensor(padding, dtype=torch.int)
 
     def _resolve_device(self, device: str | torch.device | None = None) -> torch.device:
         if type(device) is str:

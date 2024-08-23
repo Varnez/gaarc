@@ -3,7 +3,6 @@ import segmentation_models_pytorch as smp  # type: ignore[import-untyped]
 import torch
 import torch.nn as nn
 
-from gaarc.data.arc_data_models import ARCSample
 from gaarc.model.secondary_task_modules import STM, Loss
 from gaarc.model.unet import UNet
 
@@ -57,6 +56,9 @@ class UNetAutoEncoder(pl.LightningModule):
         self._secondary_task_modules: nn.ModuleList = nn.ModuleList([])
         self._epochs_trained: int = -1
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
+        self._device = (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
 
         self._model: nn.Module = UNet(
             input_channels,
@@ -82,40 +84,47 @@ class UNetAutoEncoder(pl.LightningModule):
         return mask
 
     def step(self, batch, stage):
-        sample = batch[0]
-        target = batch[1].contiguous().long()
+        samples = batch[0]
+        paddings = batch[1]
 
-        prediction = self.forward(sample)
+        predictions = self.forward(samples)
 
-        padding = batch[2]
-        prediction_without_padding = self._crop_tensor(prediction, padding)
+        for sample, padding, prediction in zip(samples, paddings, predictions):
+            target = self._crop_tensor(sample, padding).long()
+            loss_target = target.unsqueeze(0).contiguous()
 
-        loss = self.loss_fn(prediction_without_padding, target)
+            prediction_without_padding = self._crop_tensor(
+                prediction, padding
+            ).unsqueeze(0)
 
-        prediction_classes = torch.max(prediction_without_padding, dim=1)[1]
+            loss = self.loss_fn(prediction_without_padding, loss_target)
 
-        tp, fp, fn, tn = smp.metrics.get_stats(
-            prediction_classes, target, mode="multiclass", num_classes=10
-        )
+            prediction_classes = torch.max(prediction_without_padding, dim=1)[1]
 
-        output_metrics = {
-            "loss": loss,
-            "tp": tp,
-            "fp": fp,
-            "fn": fn,
-            "tn": tn,
-        }
+            tp, fp, fn, tn = smp.metrics.get_stats(
+                prediction_classes, target, mode="multiclass", num_classes=10
+            )
+
+            output_metrics = {
+                "loss": loss,
+                "tp": tp,
+                "fp": fp,
+                "fn": fn,
+                "tn": tn,
+            }
+
+            self._step_outputs[stage].append(output_metrics)
 
         if stage == "train" and self._secondary_task_modules:
-            sample = ARCSample(sample.detach().cpu().numpy()[0][0])
             secondary_task_losses: list[Loss] = []
 
             for secondary_task_module in self._secondary_task_modules:
-                secondary_task_loss = secondary_task_module.train_on_task(sample)
+                secondary_task_loss = secondary_task_module.train_on_task(samples)
 
-                output_metrics.update(
-                    {f"{secondary_task_module.name} loss": secondary_task_loss}
-                )
+                for step_output in self._step_outputs[stage]:
+                    step_output.update(
+                        {f"{secondary_task_module.name} loss": secondary_task_loss}
+                    )
 
                 secondary_task_losses.append(secondary_task_loss)
 
@@ -124,8 +133,6 @@ class UNetAutoEncoder(pl.LightningModule):
             secondary_tasks_combined_loss /= len(self._secondary_task_modules)
 
             loss += secondary_tasks_combined_loss
-
-        self._step_outputs[stage].append(output_metrics)
 
         return loss
 
@@ -235,6 +242,9 @@ class UNetAutoEncoder(pl.LightningModule):
         secondary_task_module : STM
             Uninitialized STM
         """
+        if len(sample_example.shape) == 3:
+            sample_example = sample_example.unsqueeze(0)
+
         latent_space_size = self.model.encoder(sample_example)[0].shape[1]
 
         secondary_task_module_instance = secondary_task_module(
@@ -268,7 +278,6 @@ class UNetAutoEncoder(pl.LightningModule):
             Cropped tensor.
         """
         cropped_tensor = tensor[
-            :,
             :,
             cropping_per_side[0] : -cropping_per_side[1],
             cropping_per_side[2] : -cropping_per_side[3],

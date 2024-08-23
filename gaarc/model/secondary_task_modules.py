@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from random import randint
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import BatchNorm1d, Linear, Sequential
@@ -19,17 +20,20 @@ class STM(ABC, nn.Module):
         return self._name
 
     @abstractmethod
-    def forward(self, feature_vector: torch.Tensor) -> torch.Tensor:
+    def get_input_features(self, sample: ARCSample, idx: int):
         pass
 
-    def evaluate_task(self, sample: ARCSample, feature_vector: torch.Tensor) -> Loss:
-        target = self.get_target(sample)
+    @abstractmethod
+    def get_target(self, sample: ARCSample, idx: int):
+        pass
 
-        prediction = self.forward(feature_vector)
+    @abstractmethod
+    def forward(self, input_features: torch.Tensor) -> torch.Tensor:
+        pass
 
-        loss = self._loss_function(prediction, target)
-
-        return loss
+    @abstractmethod
+    def train_on_task(self, samples: torch.Tensor) -> Loss:
+        pass
 
 
 class EntityMassCentre(STM):
@@ -52,6 +56,7 @@ class EntityMassCentre(STM):
         use_batch_norm: bool,
     ):
         super().__init__()
+
         self._encoder = encoder
         self._use_batch_norm = use_batch_norm
 
@@ -64,33 +69,35 @@ class EntityMassCentre(STM):
             Linear(hidden_layer_size, 1),
         )
 
+        self._flatten = nn.Flatten()
+
         if self._use_batch_norm:
             self.batch_norm = BatchNorm1d(latent_space_size)
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def get_input(self, sample: ARCSample, idx: int) -> torch.Tensor:
+    def get_input_features(self, sample: ARCSample, idx: int) -> torch.Tensor:
         entity = sample.entities[idx]
 
-        input_ = (
-            torch.tensor(entity.entity, device=self._device, dtype=torch.float)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        input_features = torch.tensor(
+            entity.entity, device=self._device, dtype=torch.float
+        ).unsqueeze(0)
 
-        return input_
+        return input_features
 
     def get_target(self, sample: ARCSample, idx: int) -> torch.Tensor:
         entity = sample.entities[idx]
 
         target = torch.tensor(
             entity.center_of_mass, device=self._device, dtype=torch.float
-        ).unsqueeze(1)
+        )
 
         return target
 
-    def forward(self, feature_vector: torch.Tensor) -> torch.Tensor:
-        features = torch.flatten(feature_vector).unsqueeze(0)
+    def forward(self, input_features: torch.Tensor) -> torch.Tensor:
+        features = self._encoder(input_features)[0]
+
+        features = self._flatten(features)
 
         if self._use_batch_norm:
             features = self.batch_norm(features)
@@ -98,27 +105,33 @@ class EntityMassCentre(STM):
         x_features = self._x_classifier(features)
         y_features = self._y_classifier(features)
 
-        features = torch.cat((x_features, y_features))
+        features = torch.cat((x_features, y_features), dim=1)
 
         return features
 
-    def train_on_task(self, sample: ARCSample) -> Loss:
-        if sample.entities:
-            idx = randint(0, len(sample.entities) - 1)
+    def train_on_task(self, samples: torch.Tensor) -> Loss:
+        input_features_retrieved = []
+        targets_retrieved = []
 
-            input_ = self.get_input(sample, idx)
-            target = self.get_target(sample, idx)
+        for sample in samples:
+            sample = ARCSample(sample.detach().cpu().squeeze(0).numpy())
 
-            features = self._encoder(input_)[0]
-            prediction = self.forward(features)
+            if sample.entities:
+                idx = randint(0, len(sample.entities) - 1)
 
-            loss = self._loss_function(prediction, target)
+                input_features_retrieved.append(self.get_input_features(sample, idx))
+                targets_retrieved.append(self.get_target(sample, idx))
 
-        else:
-            loss = self._loss_function(
-                torch.tensor([0.0], device=self._device, dtype=torch.float),
-                torch.tensor([0.0], device=self._device, dtype=torch.float),
-            )
+        input_features = torch.tensor(
+            np.array(input_features_retrieved), dtype=torch.float, device=self._device
+        )
+        targets = torch.tensor(
+            np.array(targets_retrieved), dtype=torch.float, device=self._device
+        )
+
+        predictions = self.forward(input_features)
+
+        loss = self._loss_function(predictions, targets)
 
         return loss
 
@@ -135,6 +148,7 @@ class SuperEntityColors(STM):
         use_batch_norm: bool,
     ):
         super().__init__()
+
         self._encoder = encoder
         self._use_batch_norm = use_batch_norm
 
@@ -143,19 +157,19 @@ class SuperEntityColors(STM):
             Linear(hidden_layer_size, 1),
         )
 
+        self._flatten = nn.Flatten()
+
         if self._use_batch_norm:
             self.batch_norm = BatchNorm1d(latent_space_size)
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def get_input(self, sample: ARCSample, idx: int) -> torch.Tensor:
+    def get_input_features(self, sample: ARCSample, idx: int) -> torch.Tensor:
         super_entity = sample.super_entities[idx]
 
-        input_ = (
-            torch.tensor(super_entity.entity, device=self._device, dtype=torch.float)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        input_ = torch.tensor(
+            super_entity.entity, device=self._device, dtype=torch.float
+        ).unsqueeze(0)
 
         return input_
 
@@ -166,12 +180,14 @@ class SuperEntityColors(STM):
             [len(super_entity.colors) / ARC_ENTITY_UNIQUE_COLORS],
             device=self._device,
             dtype=torch.float,
-        ).unsqueeze(1)
+        )
 
         return target
 
-    def forward(self, feature_vector: torch.Tensor) -> torch.Tensor:
-        features = torch.flatten(feature_vector).unsqueeze(0)
+    def forward(self, input_features: torch.Tensor) -> torch.Tensor:
+        features = self._encoder(input_features)[0]
+
+        features = self._flatten(features)
 
         if self._use_batch_norm:
             features = self.batch_norm(features)
@@ -180,22 +196,28 @@ class SuperEntityColors(STM):
 
         return features
 
-    def train_on_task(self, sample: ARCSample) -> Loss:
-        if sample.super_entities:
-            idx = randint(0, len(sample.super_entities) - 1)
+    def train_on_task(self, samples: torch.Tensor) -> Loss:
+        input_features_retrieved = []
+        targets_retrieved = []
 
-            input_ = self.get_input(sample, idx)
-            target = self.get_target(sample, idx)
+        for sample in samples:
+            sample = ARCSample(sample.detach().cpu().squeeze(0).numpy())
 
-            features = self._encoder(input_)[0]
-            prediction = self.forward(features)
+            if sample.super_entities:
+                idx = randint(0, len(sample.super_entities) - 1)
 
-            loss = self._loss_function(prediction, target)
+                input_features_retrieved.append(self.get_input_features(sample, idx))
+                targets_retrieved.append(self.get_target(sample, idx))
 
-        else:
-            loss = self._loss_function(
-                torch.tensor([0.0], device=self._device, dtype=torch.float),
-                torch.tensor([0.0], device=self._device, dtype=torch.float),
-            )
+        input_features = torch.tensor(
+            np.array(input_features_retrieved), dtype=torch.float, device=self._device
+        )
+        targets = torch.tensor(
+            np.array(targets_retrieved), dtype=torch.float, device=self._device
+        )
+
+        predictions = self.forward(input_features)
+
+        loss = self._loss_function(predictions, targets)
 
         return loss
