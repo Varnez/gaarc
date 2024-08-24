@@ -42,7 +42,6 @@ The notebooks were executed in Kaggle within the context of the competition and,
 
 ### AutoEncoder
 - In the Autoencoder and subsequent modules, manage a way to be able to explicitly select a device, and properly propagate to all the submodules, keeping a reference as a property for the subtask modules. That is, so far, the biggest painpoin in terms of automated alignment.
-- Refactor the steps so that they work with batches of size bigger than 1.
 
 ### STMs
 - Allow submodule tasks to select an specific subset of entities (or similar) to work with per step.
