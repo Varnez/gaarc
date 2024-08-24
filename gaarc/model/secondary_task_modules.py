@@ -76,21 +76,19 @@ class EntityMassCentre(STM):
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def get_input_features(self, sample: ARCSample, idx: int) -> torch.Tensor:
+    def get_input_features(self, sample: ARCSample, idx: int) -> np.ndarray:
         entity = sample.entities[idx]
 
-        input_features = torch.tensor(
-            entity.entity, device=self._device, dtype=torch.float
-        ).unsqueeze(0)
+        input_features = np.array(entity.entity)
+
+        input_features = np.expand_dims(input_features, axis=0)
 
         return input_features
 
-    def get_target(self, sample: ARCSample, idx: int) -> torch.Tensor:
+    def get_target(self, sample: ARCSample, idx: int) -> np.ndarray:
         entity = sample.entities[idx]
 
-        target = torch.tensor(
-            entity.center_of_mass, device=self._device, dtype=torch.float
-        )
+        target = np.array(entity.center_of_mass)
 
         return target
 
@@ -164,23 +162,25 @@ class SuperEntityColors(STM):
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def get_input_features(self, sample: ARCSample, idx: int) -> torch.Tensor:
+    def get_input_features(self, sample: ARCSample, idx: int) -> np.ndarray:
         super_entity = sample.super_entities[idx]
 
-        input_ = torch.tensor(
-            super_entity.entity, device=self._device, dtype=torch.float
-        ).unsqueeze(0)
-
-        return input_
-
-    def get_target(self, sample: ARCSample, idx: int) -> torch.Tensor:
-        super_entity = sample.super_entities[idx]
-
-        target = torch.tensor(
-            [len(super_entity.colors) / ARC_ENTITY_UNIQUE_COLORS],
-            device=self._device,
-            dtype=torch.float,
+        input_features = np.array(
+            super_entity.entity,
         )
+
+        input_features = np.expand_dims(input_features, axis=0)
+
+        return input_features
+
+    def get_target(self, sample: ARCSample, idx: int) -> np.ndarray:
+        super_entity = sample.super_entities[idx]
+
+        target = np.array(
+            len(super_entity.colors) / ARC_ENTITY_UNIQUE_COLORS,
+        )
+
+        target = np.expand_dims(target, axis=0)
 
         return target
 
