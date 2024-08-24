@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
@@ -9,6 +10,9 @@ BORDER_TYPES = ("side", "corner", "point", "isolated")
 ARC_ENTITY_UNIQUE_COLORS = 9
 
 # pylint: disable=singleton-comparison
+
+
+sys.setrecursionlimit(2000)
 
 
 class BaseEntity(ABC):
