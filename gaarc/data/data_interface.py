@@ -35,7 +35,6 @@ class ARCDataset(Dataset):
     def __init__(
         self,
         arc_task_jsons: list[Path],
-        device: str | torch.device | None = None,
         padding_shape: tuple[int, int] | None = None,
         augmentation_transformations: (
             list[DataAugmentationTransformation] | None
@@ -53,8 +52,6 @@ class ARCDataset(Dataset):
         ) = augmentation_transformations
 
         self._cache_data_views: bool = cache_data_views
-
-        self._device: torch.device = self._resolve_device(device)
 
         if padding_shape is not None:
             self._padding_height = padding_shape[0]
@@ -141,10 +138,6 @@ class ARCDataset(Dataset):
 
         return test_samples
 
-    @property
-    def device(self) -> torch.device:
-        return self._device
-
     def activate_data_augmentation(self) -> None:
         self._augment_data = True
 
@@ -168,20 +161,6 @@ class ARCDataset(Dataset):
             sample, self._padding_height, self._padding_width, -1
         )
 
-        padded_sample = torch.tensor(
-            padded_sample, device=self._device, dtype=torch.float
-        ).unsqueeze(0)
+        padded_sample = torch.tensor(padded_sample, dtype=torch.float).unsqueeze(0)
 
         return padded_sample, torch.tensor(padding, dtype=torch.int)
-
-    def _resolve_device(self, device: str | torch.device | None = None) -> torch.device:
-        if type(device) is str:
-            device = torch.device(device)
-        elif device is None:
-            device = (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu")
-            )
-
-        return device
