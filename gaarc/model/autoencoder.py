@@ -84,7 +84,7 @@ class UNetAutoEncoder(pl.LightningModule):
         return mask
 
     def step(self, batch, stage):
-        samples = batch[0]
+        samples = batch[0].to(self._device)
         paddings = batch[1]
 
         predictions = self.forward(samples)
