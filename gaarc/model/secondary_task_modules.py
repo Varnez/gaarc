@@ -35,6 +35,23 @@ class STM(ABC, nn.Module):
     def train_on_task(self, samples: torch.Tensor) -> Loss:
         pass
 
+    def _get_arc_sample(self, sample_tensor: torch.Tensor) -> ARCSample:
+        sample_array = sample_tensor.squeeze(0).numpy()
+
+        if self._cache_samples:
+            sample_hash = hash(sample_array.data.tobytes())
+
+            if sample_hash in self._sample_cache:
+                sample = self._sample_cache[sample_hash]
+            else:
+                sample = ARCSample(sample_array)
+                self._sample_cache[sample_hash] = sample
+
+        else:
+            sample = ARCSample(sample_array)
+
+        return sample
+
 
 class EntityMassCentre(STM):
     """
@@ -54,27 +71,32 @@ class EntityMassCentre(STM):
         latent_space_size: int,
         hidden_layer_size: int,
         use_batch_norm: bool,
+        cache_samples: bool = True,
     ):
         super().__init__()
 
-        self._encoder = encoder
-        self._use_batch_norm = use_batch_norm
+        self._encoder: nn.Module = encoder
+        self._use_batch_norm: bool = use_batch_norm
+        self._cache_samples: bool = cache_samples
 
-        self._x_classifier = Sequential(
+        self._x_classifier: nn.Module = Sequential(
             Linear(latent_space_size, hidden_layer_size),
             Linear(hidden_layer_size, 1),
         )
-        self._y_classifier = Sequential(
+        self._y_classifier: nn.Module = Sequential(
             Linear(latent_space_size, hidden_layer_size),
             Linear(hidden_layer_size, 1),
         )
 
-        self._flatten = nn.Flatten()
+        self._flatten: nn.Module = nn.Flatten()
 
         if self._use_batch_norm:
-            self.batch_norm = BatchNorm1d(latent_space_size)
+            self.batch_norm: nn.Module = BatchNorm1d(latent_space_size)
 
-        self._device = "cuda" if torch.cuda.is_available() else "cpu"
+        if self._cache_samples:
+            self._sample_cache: dict[int, ARCSample] = {}
+
+        self._device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
     def get_input_features(self, sample: ARCSample, idx: int) -> np.ndarray:
         entity = sample.entities[idx]
@@ -108,11 +130,12 @@ class EntityMassCentre(STM):
         return features
 
     def train_on_task(self, samples: torch.Tensor) -> Loss:
+        samples = samples.detach().cpu()
         input_features_retrieved = []
         targets_retrieved = []
 
-        for sample in samples:
-            sample = ARCSample(sample.detach().cpu().squeeze(0).numpy())
+        for sample_tensor in samples:
+            sample = self._get_arc_sample(sample_tensor)
 
             if sample.entities:
                 idx = randint(0, len(sample.entities) - 1)
@@ -144,23 +167,28 @@ class SuperEntityColors(STM):
         latent_space_size: int,
         hidden_layer_size: int,
         use_batch_norm: bool,
+        cache_samples: bool = True,
     ):
         super().__init__()
 
-        self._encoder = encoder
-        self._use_batch_norm = use_batch_norm
+        self._encoder: nn.Module = encoder
+        self._use_batch_norm: bool = use_batch_norm
+        self._cache_samples: bool = cache_samples
 
         self._classifier = Sequential(
             Linear(latent_space_size, hidden_layer_size),
             Linear(hidden_layer_size, 1),
         )
 
-        self._flatten = nn.Flatten()
+        self._flatten: nn.Module = nn.Flatten()
 
         if self._use_batch_norm:
-            self.batch_norm = BatchNorm1d(latent_space_size)
+            self.batch_norm: nn.Module = BatchNorm1d(latent_space_size)
 
-        self._device = "cuda" if torch.cuda.is_available() else "cpu"
+        if self._cache_samples:
+            self._sample_cache: dict[int, ARCSample] = {}
+
+        self._device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
     def get_input_features(self, sample: ARCSample, idx: int) -> np.ndarray:
         super_entity = sample.super_entities[idx]
@@ -197,11 +225,12 @@ class SuperEntityColors(STM):
         return features
 
     def train_on_task(self, samples: torch.Tensor) -> Loss:
+        samples = samples.detach().cpu()
         input_features_retrieved = []
         targets_retrieved = []
 
-        for sample in samples:
-            sample = ARCSample(sample.detach().cpu().squeeze(0).numpy())
+        for sample_tensor in samples:
+            sample = self._get_arc_sample(sample_tensor)
 
             if sample.super_entities:
                 idx = randint(0, len(sample.super_entities) - 1)
