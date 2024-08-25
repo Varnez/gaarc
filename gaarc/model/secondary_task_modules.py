@@ -109,7 +109,7 @@ class EntitySTM(STM, ABC):
         predictions = self.forward(input_features)
 
         loss = self._loss_function(predictions, targets)
-        loss *= self._loss_weight
+        loss = loss * self._loss_weight / len(input_features_retrieved)
 
         return loss
 
