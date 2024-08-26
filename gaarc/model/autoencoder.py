@@ -190,11 +190,13 @@ class UNetAutoEncoder(pl.LightningModule):
                         )
 
             if self._verbose_training:
-                if stage == "train" or stage == "valid":
-                    if stage == "train":
-                        print_color = "\033[94m"
-                    elif stage == "valid":
-                        print_color = "\033[92m"
+                if stage == "train":
+                    print_color = "\033[94m"
+                elif stage == "valid":
+                    print_color = "\033[92m"
+                elif stage == "test":
+                    print_color = "\033[96m"
+
                 print(
                     f"{print_color}Epoch {self._epochs_trained:02d} {stage}: {metrics}"
                 )
