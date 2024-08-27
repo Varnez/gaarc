@@ -237,32 +237,6 @@ class UNetAutoEncoder(pl.LightningModule):
     def on_test_epoch_end(self):
         return self.on_epoch_end("test")
 
-    def add_secondary_task_module(
-        self, secondary_task_module: STM, sample_example: torch.Tensor, **kwargs
-    ) -> None:
-        """
-        Adds an STM class to the secondary tasks to be used during trained.
-
-        This method expects the class, not an initialized instance.
-        It will be initialized based on the architecture of the autoencoder and the
-        size of the provided sample.
-
-        Parameters
-        ----------
-        secondary_task_module : STM
-            Uninitialized STM
-        """
-        if len(sample_example.shape) == 3:
-            sample_example = sample_example.unsqueeze(0)
-
-        latent_space_size = self.model.encoder(sample_example)[0].shape[1]
-
-        secondary_task_module_instance = secondary_task_module(
-            self.model.encoder, latent_space_size, **kwargs
-        )
-
-        self._secondary_task_modules.append(secondary_task_module_instance)
-
     def _crop_tensor(
         self, tensor: torch.Tensor, cropping_per_side: tuple[int, int, int, int]
     ) -> torch.Tensor:
