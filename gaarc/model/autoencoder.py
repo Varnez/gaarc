@@ -42,6 +42,7 @@ class UNetAutoEncoder(pl.LightningModule):
         encoder_first_block_channels: int,
         model_layer_depth: int,
         initial_learning_rate: float = 0.0001,
+        secondary_task_modules: list[STM] | None = None,
         secondary_tasks_global_loss_weight: float = 1.0,
         verbose_training: bool = False,
     ):
@@ -53,7 +54,11 @@ class UNetAutoEncoder(pl.LightningModule):
         self._initial_learning_rate: float = initial_learning_rate
         self._secondary_tasks_global_loss_weight = secondary_tasks_global_loss_weight
         self._verbose_training: bool = verbose_training
-        self._secondary_task_modules: nn.ModuleList = nn.ModuleList([])
+        self._secondary_task_modules: nn.ModuleList = (
+            nn.ModuleList(secondary_task_modules)
+            if secondary_task_modules
+            else nn.ModuleList([])
+        )
         self._epochs_trained: int = -1
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
         self._device = (
@@ -71,6 +76,9 @@ class UNetAutoEncoder(pl.LightningModule):
             "multiclass",
             from_logits=True,
         )
+
+        for stm in self._secondary_task_modules:
+            stm.attach_encoder(self._model.encoder)
 
         self.save_hyperparameters()
 

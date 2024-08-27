@@ -15,6 +15,10 @@ class STM(nn.Module, ABC):
     _name: str
     _loss_function: Loss
 
+    def __init__(self):
+        super().__init__()
+        self._encoder: nn.Module
+
     @property
     def name(self) -> str:
         return self._name
@@ -30,6 +34,20 @@ class STM(nn.Module, ABC):
     @abstractmethod
     def train_on_task(self, samples: torch.Tensor) -> Loss:
         pass
+
+    def attach_encoder(self, encoder: nn.Module):
+        """
+        Provides the Encoder sub-model of the autoencoder to the secondary task so that
+        it can be automatically used during the forward execution.
+
+        This needs to be executed first before using the instance any other way.
+
+        Parameters
+        ----------
+        encoder : nn.Module
+            Encoder component of an AutoEncoder model.
+        """
+        self._encoder = encoder
 
     def forward(self, input_features: torch.Tensor) -> torch.Tensor:
         features = self._encoder(input_features)[0]
@@ -60,13 +78,10 @@ class EntitySTM(STM, ABC):
 
     def __init__(
         self,
-        encoder: nn.Module,
         task_loss_weight: float = 1.0,
         cache_samples: bool = True,
     ):
         super().__init__()
-
-        self._encoder: nn.Module = encoder
         self._loss_weight: float = task_loss_weight
         self._cache_samples: bool = cache_samples
 
@@ -146,7 +161,6 @@ class EntityMassCentre(EntitySTM):
 
     def __init__(
         self,
-        encoder: nn.Module,
         latent_space_size: int,
         hidden_layer_size: int,
         task_loss_weight: float = 1.0,
@@ -154,7 +168,6 @@ class EntityMassCentre(EntitySTM):
         cache_samples: bool = True,
     ):
         super().__init__(
-            encoder=encoder,
             task_loss_weight=task_loss_weight,
             cache_samples=cache_samples,
         )
@@ -219,7 +232,6 @@ class SuperEntityColors(SuperEntitySTM):
 
     def __init__(
         self,
-        encoder: nn.Module,
         latent_space_size: int,
         hidden_layer_size: int,
         task_loss_weight: float = 1.0,
@@ -227,7 +239,6 @@ class SuperEntityColors(SuperEntitySTM):
         cache_samples: bool = True,
     ):
         super().__init__(
-            encoder=encoder,
             task_loss_weight=task_loss_weight,
             cache_samples=cache_samples,
         )
