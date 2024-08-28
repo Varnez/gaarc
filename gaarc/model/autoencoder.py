@@ -77,9 +77,6 @@ class UNetAutoEncoder(pl.LightningModule):
             from_logits=True,
         )
 
-        for stm in self._secondary_task_modules:
-            stm.attach_encoder(self._model.encoder)
-
         self.save_hyperparameters()
 
     @property
@@ -127,7 +124,9 @@ class UNetAutoEncoder(pl.LightningModule):
             secondary_task_losses: list[Loss] = []
 
             for secondary_task_module in self._secondary_task_modules:
-                secondary_task_loss = secondary_task_module.train_on_task(samples)
+                secondary_task_loss = secondary_task_module.train_on_task(
+                    samples, self._model.encoder
+                )
 
                 for step_output in self._step_outputs[stage]:
                     step_output.update(

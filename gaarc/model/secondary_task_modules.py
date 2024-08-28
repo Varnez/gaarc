@@ -17,7 +17,6 @@ class STM(nn.Module, ABC):
 
     def __init__(self):
         super().__init__()
-        self._encoder: nn.Module
 
     @property
     def name(self) -> str:
@@ -32,25 +31,11 @@ class STM(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def train_on_task(self, samples: torch.Tensor) -> Loss:
+    def train_on_task(self, samples: torch.Tensor, encoder: nn.Module) -> Loss:
         pass
 
-    def attach_encoder(self, encoder: nn.Module):
-        """
-        Provides the Encoder sub-model of the autoencoder to the secondary task so that
-        it can be automatically used during the forward execution.
-
-        This needs to be executed first before using the instance any other way.
-
-        Parameters
-        ----------
-        encoder : nn.Module
-            Encoder component of an AutoEncoder model.
-        """
-        self._encoder = encoder
-
-    def forward(self, input_features: torch.Tensor) -> torch.Tensor:
-        features = self._encoder(input_features)[0]
+    def forward(self, input_features: torch.Tensor, encoder: nn.Module) -> torch.Tensor:
+        features = encoder(input_features)[0]
 
         features = self._flatten(features)
 
@@ -107,7 +92,7 @@ class EntitySTM(STM, ABC):
 
         return input_features_retrieved, targets_retrieved
 
-    def train_on_task(self, samples: torch.Tensor) -> Loss:
+    def train_on_task(self, samples: torch.Tensor, encoder: nn.Module) -> Loss:
         samples = samples.detach().cpu()
 
         input_features_retrieved, targets_retrieved = self._retrieve_training_elements(
@@ -121,7 +106,7 @@ class EntitySTM(STM, ABC):
             np.array(targets_retrieved), dtype=torch.float, device=self._device
         )
 
-        predictions = self.forward(input_features)
+        predictions = self.forward(input_features, encoder)
 
         loss = self._loss_function(predictions, targets)
         loss = loss * self._loss_weight / len(input_features_retrieved)
@@ -215,8 +200,8 @@ class EntityMassCentre(EntitySTM):
 
         return target
 
-    def forward(self, input_features: torch.Tensor) -> torch.Tensor:
-        features = super().forward(input_features)
+    def forward(self, input_features: torch.Tensor, encoder: nn.Module) -> torch.Tensor:
+        features = super().forward(input_features, encoder)
 
         x_features = self._x_classifier(features)
         y_features = self._y_classifier(features)
@@ -281,8 +266,8 @@ class SuperEntityColors(SuperEntitySTM):
 
         return target
 
-    def forward(self, input_features: torch.Tensor) -> torch.Tensor:
-        features = super().forward(input_features)
+    def forward(self, input_features: torch.Tensor, encoder: nn.Module) -> torch.Tensor:
+        features = super().forward(input_features, encoder)
 
         features = self._classifier(features)
 
