@@ -148,7 +148,7 @@ class UNetAutoEncoder(pl.LightningModule):
         iter_count = len(self._step_outputs[stage])
 
         for idx in range(iter_count):
-            total_loss += self._step_outputs[stage][idx]["loss"].item()
+            total_loss += self._step_outputs[stage][idx]["loss"].detach()
 
         if self._step_outputs[stage]:
             tp = torch.cat([output["tp"] for output in self._step_outputs[stage]])
@@ -170,12 +170,12 @@ class UNetAutoEncoder(pl.LightningModule):
 
             metrics = {
                 f"{stage}_loss": total_loss / iter_count,
-                f"{stage}_precision": precision.item(),
-                f"{stage}_recall": recall.item(),
-                f"{stage}_accuracy": accuracy.item(),
-                f"{stage}_f1_score": f1_score.item(),
-                f"{stage}_per_image_iou": per_image_iou.item(),
-                f"{stage}_dataset_iou": dataset_iou.item(),
+                f"{stage}_precision": precision.detach(),
+                f"{stage}_recall": recall.detach(),
+                f"{stage}_accuracy": accuracy.detach(),
+                f"{stage}_f1_score": f1_score.detach(),
+                f"{stage}_per_image_iou": per_image_iou.detach(),
+                f"{stage}_dataset_iou": dataset_iou.detach(),
             }
 
             if stage == "valid":
@@ -190,7 +190,7 @@ class UNetAutoEncoder(pl.LightningModule):
                         for step_output in self._step_outputs[stage]:
                             secondary_task_loss += step_output[
                                 secondary_task_loss_name
-                            ].item()
+                            ].detach()
 
                         metrics.update(
                             {secondary_task_loss_name: secondary_task_loss / iter_count}
