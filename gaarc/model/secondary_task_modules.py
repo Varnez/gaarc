@@ -31,7 +31,7 @@ class STM(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def train_on_task(self, samples: torch.Tensor, encoder: nn.Module) -> Loss:
+    def train_on_task(self, samples: list[ARCSample], encoder: nn.Module) -> Loss:
         pass
 
     def forward(self, input_features: torch.Tensor, encoder: nn.Module) -> torch.Tensor:
@@ -41,49 +41,27 @@ class STM(nn.Module, ABC):
 
         return features
 
-    def _get_arc_sample(self, sample_tensor: torch.Tensor) -> ARCSample:
-        sample_array = sample_tensor.squeeze(0).numpy()
-
-        if self._cache_samples:
-            sample_hash = hash(sample_array.data.tobytes())
-
-            if sample_hash in self._sample_cache:
-                sample = self._sample_cache[sample_hash]
-            else:
-                sample = ARCSample(sample_array)
-                self._sample_cache[sample_hash] = sample
-
-        else:
-            sample = ARCSample(sample_array)
-
-        return sample
-
 
 class EntitySTM(STM, ABC):
 
     def __init__(
         self,
         task_loss_weight: float = 1.0,
-        cache_samples: bool = True,
     ):
         super().__init__()
         self._loss_weight: float = task_loss_weight
-        self._cache_samples: bool = cache_samples
 
         self._flatten: nn.Module = nn.Flatten()
 
-        if self._cache_samples:
-            self._sample_cache: dict[int, ARCSample] = {}
-
         self._device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def _retrieve_training_elements(self, samples: torch.Tensor) -> tuple[list, list]:
+    def _retrieve_training_elements(
+        self, samples: list[ARCSample]
+    ) -> tuple[list, list]:
         input_features_retrieved = []
         targets_retrieved = []
 
-        for sample_tensor in samples:
-            sample = self._get_arc_sample(sample_tensor)
-
+        for sample in samples:
             if sample.entities:
                 idx = randint(0, len(sample.entities) - 1)
 
@@ -92,9 +70,7 @@ class EntitySTM(STM, ABC):
 
         return input_features_retrieved, targets_retrieved
 
-    def train_on_task(self, samples: torch.Tensor, encoder: nn.Module) -> Loss:
-        samples = samples.detach().cpu()
-
+    def train_on_task(self, samples: list[ARCSample], encoder: nn.Module) -> Loss:
         input_features_retrieved, targets_retrieved = self._retrieve_training_elements(
             samples
         )
@@ -116,13 +92,13 @@ class EntitySTM(STM, ABC):
 
 class SuperEntitySTM(EntitySTM, ABC):
 
-    def _retrieve_training_elements(self, samples: torch.Tensor) -> tuple[list, list]:
+    def _retrieve_training_elements(
+        self, samples: list[ARCSample]
+    ) -> tuple[list, list]:
         input_features_retrieved = []
         targets_retrieved = []
 
-        for sample_tensor in samples:
-            sample = self._get_arc_sample(sample_tensor)
-
+        for sample in samples:
             if sample.super_entities:
                 idx = randint(0, len(sample.super_entities) - 1)
 
@@ -150,11 +126,9 @@ class EntityMassCentre(EntitySTM):
         hidden_layer_size: int,
         task_loss_weight: float = 1.0,
         use_batch_norm: bool = True,
-        cache_samples: bool = True,
     ):
         super().__init__(
             task_loss_weight=task_loss_weight,
-            cache_samples=cache_samples,
         )
 
         self._x_classifier: nn.Module
@@ -221,11 +195,9 @@ class SuperEntityColors(SuperEntitySTM):
         hidden_layer_size: int,
         task_loss_weight: float = 1.0,
         use_batch_norm: bool = True,
-        cache_samples: bool = True,
     ):
         super().__init__(
             task_loss_weight=task_loss_weight,
-            cache_samples=cache_samples,
         )
 
         self._classifier: nn.Module

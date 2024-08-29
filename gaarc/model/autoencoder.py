@@ -3,7 +3,7 @@ import segmentation_models_pytorch as smp  # type: ignore[import-untyped]
 import torch
 import torch.nn as nn
 
-from gaarc.model.secondary_task_modules import STM, Loss
+from gaarc.model.secondary_task_modules import STM, ARCSample, Loss
 from gaarc.model.unet import UNet
 
 
@@ -44,6 +44,7 @@ class UNetAutoEncoder(pl.LightningModule):
         initial_learning_rate: float = 0.0001,
         secondary_task_modules: list[STM] | None = None,
         secondary_tasks_global_loss_weight: float = 1.0,
+        cache_secondary_task_samples: bool = True,
         verbose_training: bool = False,
     ):
         super().__init__()
@@ -53,6 +54,8 @@ class UNetAutoEncoder(pl.LightningModule):
         self._model_layer_depth: int = model_layer_depth
         self._initial_learning_rate: float = initial_learning_rate
         self._secondary_tasks_global_loss_weight = secondary_tasks_global_loss_weight
+        self._sample_cache: dict[int, ARCSample] = {}
+        self._cache_stm_samples: bool = cache_secondary_task_samples
         self._verbose_training: bool = verbose_training
         self._secondary_task_modules: nn.ModuleList = (
             nn.ModuleList(secondary_task_modules)
@@ -121,11 +124,15 @@ class UNetAutoEncoder(pl.LightningModule):
             self._step_outputs[stage].append(output_metrics)
 
         if stage == "train" and self._secondary_task_modules:
+            stm_samples: list[ARCSample] = [
+                self._get_arc_sample(sample) for sample in batch[0]
+            ]
             secondary_task_losses: list[Loss] = []
 
             for secondary_task_module in self._secondary_task_modules:
+
                 secondary_task_loss = secondary_task_module.train_on_task(
-                    samples, self._model.encoder
+                    stm_samples, self._model.encoder
                 )
 
                 for step_output in self._step_outputs[stage]:
@@ -267,6 +274,23 @@ class UNetAutoEncoder(pl.LightningModule):
         ]
 
         return cropped_tensor
+
+    def _get_arc_sample(self, sample_tensor: torch.Tensor) -> ARCSample:
+        sample_array = sample_tensor.squeeze(0).numpy()
+
+        if self._cache_stm_samples:
+            sample_hash = hash(sample_array.data.tobytes())
+
+            if sample_hash in self._sample_cache:
+                sample = self._sample_cache[sample_hash]
+            else:
+                sample = ARCSample(sample_array)
+                self._sample_cache[sample_hash] = sample
+
+        else:
+            sample = ARCSample(sample_array)
+
+        return sample
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self._initial_learning_rate)
