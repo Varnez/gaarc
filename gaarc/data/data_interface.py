@@ -134,7 +134,7 @@ class ARCAutoencoderDataset(Dataset):
             ].to_list()
 
         if self._cache_data_views:
-            self._train_samples = test_samples
+            self._test_samples = test_samples
 
         return test_samples
 
