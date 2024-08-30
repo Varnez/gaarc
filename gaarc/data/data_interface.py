@@ -10,7 +10,7 @@ from gaarc.data.augmentation import DataAugmentationTransformation
 from gaarc.data.preprocessing import padd_image
 
 
-class ARCDataset(Dataset):
+class ARCAutoencoderDataset(Dataset):
     """
     Class to load a group of jsons containing ARC samples as numpy arrays, along as holding their
     metadata information, such as the kind of role of each sample or subset it belongs to.
