@@ -126,7 +126,7 @@ class UNetAutoEncoder(pl.LightningModule):
 
         if stage == "train" and self._secondary_task_modules:
             stm_samples: list[ARCSample] = [
-                self._get_arc_sample(sample) for sample in samples
+                self._get_arc_sample(sample) for sample in samples.cpu()
             ]
             secondary_task_losses: list[Loss] = []
 
@@ -277,7 +277,7 @@ class UNetAutoEncoder(pl.LightningModule):
         return cropped_tensor
 
     def _get_arc_sample(self, sample_tensor: torch.Tensor) -> ARCSample:
-        sample_array = sample_tensor.cpu().squeeze(0).numpy()
+        sample_array = sample_tensor.squeeze(0).numpy()
         hash_ = xxhash.xxh64()
 
         if self._cache_stm_samples:
