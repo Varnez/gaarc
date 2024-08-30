@@ -1,7 +1,8 @@
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp  # type: ignore[import-untyped]
 import torch
-import torch.nn as nn
+import xxhash  # pylint: disable=import-error
+from torch import nn
 
 from gaarc.model.secondary_task_modules import STM, ARCSample, Loss
 from gaarc.model.unet import UNet
@@ -92,7 +93,7 @@ class UNetAutoEncoder(pl.LightningModule):
         return mask
 
     def step(self, batch, stage):
-        samples = batch[0].to(self._device)
+        samples = batch[0]
         paddings = batch[1]
 
         predictions = self.forward(samples)
@@ -125,7 +126,7 @@ class UNetAutoEncoder(pl.LightningModule):
 
         if stage == "train" and self._secondary_task_modules:
             stm_samples: list[ARCSample] = [
-                self._get_arc_sample(sample) for sample in batch[0]
+                self._get_arc_sample(sample) for sample in samples
             ]
             secondary_task_losses: list[Loss] = []
 
@@ -276,10 +277,12 @@ class UNetAutoEncoder(pl.LightningModule):
         return cropped_tensor
 
     def _get_arc_sample(self, sample_tensor: torch.Tensor) -> ARCSample:
-        sample_array = sample_tensor.squeeze(0).numpy()
+        sample_array = sample_tensor.cpu().squeeze(0).numpy()
+        hash_ = xxhash.xxh64()
 
         if self._cache_stm_samples:
-            sample_hash = hash(sample_array.data.tobytes())
+            hash_.update(sample_array)
+            sample_hash = hash_.intdigest()
 
             if sample_hash in self._sample_cache:
                 sample = self._sample_cache[sample_hash]
