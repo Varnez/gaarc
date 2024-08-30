@@ -217,6 +217,10 @@ class SuperEntity(BaseEntity):
             if value != 0:
                 self._values[value] = count
 
+        self._size = 0
+        for amount in self._values.values():
+            self._size += amount
+
     @property
     def colors(self) -> list[int]:
         colors = list(self._values.keys())
@@ -225,12 +229,7 @@ class SuperEntity(BaseEntity):
 
     @property
     def size(self) -> int:
-        size = 0
-
-        for amount in self._values.values():
-            size += amount
-
-        return size
+        return self._size
 
 
 class ARCSample:
