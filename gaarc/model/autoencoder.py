@@ -231,18 +231,22 @@ class UNetAutoEncoder(pl.LightningModule):
     def validation_step(
         self, batch, batch_idx
     ):  # pylint: disable=arguments-differ, unused-argument
-        return self.step(batch, "valid")
+        with torch.no_grad():
+            return self.step(batch, "valid")
 
     def on_validation_epoch_end(self):
-        return self.on_epoch_end("valid")
+        with torch.no_grad():
+            return self.on_epoch_end("valid")
 
     def test_step(
         self, batch, batch_idx
     ):  # pylint: disable=arguments-differ, unused-argument
-        return self.step(batch, "test")
+        with torch.no_grad():
+            return self.step(batch, "test")
 
     def on_test_epoch_end(self):
-        return self.on_epoch_end("test")
+        with torch.no_grad():
+            return self.on_epoch_end("test")
 
     def _crop_tensor(
         self, tensor: torch.Tensor, cropping_per_side: tuple[int, int, int, int]
