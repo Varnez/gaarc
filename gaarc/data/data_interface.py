@@ -1,4 +1,5 @@
 import json
+from abc import ABC
 from pathlib import Path
 
 import numpy as np
@@ -10,28 +11,7 @@ from gaarc.data.augmentation import DataAugmentationTransformation
 from gaarc.data.preprocessing import padd_image
 
 
-class ARCAutoencoderDataset(Dataset):
-    """
-    Class to load a group of jsons containing ARC samples as numpy arrays, along as holding their
-    metadata information, such as the kind of role of each sample or subset it belongs to.
-
-    Useful to build upon any data management functionality, as well as doing data exploration.
-
-    Also acts as a toch Dataset, in which case it can use to iterate over the samples in a training
-    process.
-
-    In this effect, transformations such as padding are made available to treat the images.
-
-    Lastly, the possibility to avoid data caches is to be able to use have a non-training oriented
-    mode, so that if processing time is not of the essence because, for example, the class is
-    being used for data exploration and it's desired not to exploit memory as much, so that this
-    system can be removed. This flag should not be set to False if the class is being loaded for
-    training, since it will slow down the training procedure by an order of magnitude.
-
-    Ideally, it's expected to be initialized with either train or eval jsons or even both subsets
-    at the same time.
-    """
-
+class ARCDataset(Dataset, ABC):
     def __init__(
         self,
         arc_task_jsons: list[Path],
@@ -50,7 +30,6 @@ class ARCAutoencoderDataset(Dataset):
         self._augmentation_transformations: (
             list[DataAugmentationTransformation] | None
         ) = augmentation_transformations
-
         self._cache_data_views: bool = cache_data_views
 
         if padding_shape is not None:
@@ -90,6 +69,29 @@ class ARCAutoencoderDataset(Dataset):
                 "task_example_id": example_ids,
             }
         )
+
+
+class ARCAutoencoderDataset(ARCDataset):
+    """
+    Class to load a group of jsons containing ARC samples as numpy arrays, along as holding their
+    metadata information, such as the kind of role of each sample or subset it belongs to.
+
+    Useful to build upon any data management functionality, as well as doing data exploration.
+
+    Also acts as a toch Dataset, in which case it can use to iterate over the samples in a training
+    process.
+
+    In this effect, transformations such as padding are made available to treat the images.
+
+    Lastly, the possibility to avoid data caches is to be able to use have a non-training oriented
+    mode, so that if processing time is not of the essence because, for example, the class is
+    being used for data exploration and it's desired not to exploit memory as much, so that this
+    system can be removed. This flag should not be set to False if the class is being loaded for
+    training, since it will slow down the training procedure by an order of magnitude.
+
+    Ideally, it's expected to be initialized with either train or eval jsons or even both subsets
+    at the same time.
+    """
 
     @property
     def contents(self) -> pd.DataFrame:
@@ -162,5 +164,112 @@ class ARCAutoencoderDataset(Dataset):
         )
 
         padded_sample = torch.tensor(padded_sample, dtype=torch.float).unsqueeze(0)
+        padding = torch.tensor(padding, dtype=torch.int)
 
-        return padded_sample, torch.tensor(padding, dtype=torch.int)
+        return padded_sample, padding
+
+
+class ARCTasksDataset(ARCDataset):
+
+    def __init__(
+        self,
+        arc_task_jsons: list[Path],
+        padding_shape: tuple[int, int] | None = None,
+        augmentation_transformations: (
+            list[DataAugmentationTransformation] | None
+        ) = None,
+        cache_data_views: bool = True,
+    ):
+
+        super().__init__(
+            arc_task_jsons=arc_task_jsons,
+            padding_shape=padding_shape,
+            augmentation_transformations=augmentation_transformations,
+            cache_data_views=cache_data_views,
+        )
+
+        self._tasks: list[Task] = [
+            Task(self._contents[self._contents["task_name"] == task_name])
+            for task_name in self._contents["task_name"].unique()
+        ]
+
+    def __len__(self):
+        return len(self._tasks)
+
+    def __getitem__(self, idx):
+        task: Task = self._tasks[idx]
+
+        inputs = []
+        inputs_paddings = []
+        outputs = []
+        outputs_paddings = []
+
+        for input_ in task.inputs:
+            padded_sample, padding = padd_image(
+                input_, self._padding_height, self._padding_width, -1
+            )
+            inputs.append(padded_sample)
+            inputs_paddings.append(padding)
+
+        for output in task.outputs:
+            padded_sample, padding = padd_image(
+                output, self._padding_height, self._padding_width, -1
+            )
+            outputs.append(padded_sample)
+            outputs_paddings.append(padding)
+
+        inputs = torch.tensor(inputs, dtype=torch.float).unsqueeze(1)
+        inputs_paddings = torch.tensor(inputs_paddings, dtype=torch.int)
+        outputs = torch.tensor(outputs, dtype=torch.float).unsqueeze(1)
+        outputs_paddings = torch.tensor(outputs_paddings, dtype=torch.int)
+
+        return inputs, inputs_paddings, outputs, outputs_paddings
+
+
+class Task:
+    """
+    Class meant to hold and manage the specific image samples forming a task.
+
+    There are multiple properties available acting as different views (or rather groupings)
+    of the samples.
+    """
+
+    def __init__(self, task_samples: pd.DataFrame):
+        self._samples: pd.DataFrame = task_samples.sort_values(
+            by=["subset", "task_example_id", "role"]
+        )
+
+        self._train: pd.DataFrame = self._samples[self._samples["subset"] == "train"]
+        self._test: pd.DataFrame = self._samples[self._samples["subset"] == "test"]
+
+    @property
+    def inputs(self) -> list[np.ndarray]:
+        return self._samples[self._samples["role"] == "input"]["sample"].tolist()
+
+    @property
+    def outputs(self) -> list[np.ndarray]:
+        return self._samples[self._samples["role"] == "output"]["sample"].tolist()
+
+    @property
+    def train_samples(self) -> list[np.ndarray]:
+        return self._train["sample"].tolist()
+
+    @property
+    def train_inputs(self) -> list[np.ndarray]:
+        return self._train[self._train["role"] == "input"]["sample"].tolist()
+
+    @property
+    def train_outputs(self) -> list[np.ndarray]:
+        return self._train[self._train["role"] == "output"]["sample"].tolist()
+
+    @property
+    def test_samples(self) -> list[np.ndarray]:
+        return self._test["sample"].tolist()
+
+    @property
+    def test_inputs(self) -> list[np.ndarray]:
+        return self._test[self._test["role"] == "input"]["sample"].tolist()
+
+    @property
+    def test_outputs(self) -> list[np.ndarray]:
+        return self._test[self._test["role"] == "output"]["sample"].tolist()
