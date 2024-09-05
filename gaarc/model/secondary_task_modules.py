@@ -308,10 +308,10 @@ class EntitySize(EntitySTM):
         return input_features
 
     def get_target(self, sample: ARCSample, idx: int) -> np.ndarray:
-        super_entity = sample.entities[idx]
+        entity = sample.entities[idx]
 
         target = np.array(
-            super_entity.size,
+            entity.size / (entity.entity_mask.shape[0] * entity.entity_mask.shape[1]),
         )
 
         target = np.expand_dims(target, axis=0)
@@ -377,7 +377,8 @@ class SuperEntitySize(SuperEntitySTM):
         super_entity = sample.super_entities[idx]
 
         target = np.array(
-            super_entity.size,
+            super_entity.size
+            / (super_entity.entity_mask.shape[0] * super_entity.entity_mask.shape[1]),
         )
 
         target = np.expand_dims(target, axis=0)
