@@ -87,8 +87,8 @@ class UNetAutoEncoder(pl.LightningModule):
     def model(self) -> UNet:
         return self._model
 
-    def forward(self, image):  # pylint: disable=arguments-differ
-        mask = self.model(image)
+    def forward(self, tensor):  # pylint: disable=arguments-differ
+        mask = self.model(tensor)
 
         return mask
 
