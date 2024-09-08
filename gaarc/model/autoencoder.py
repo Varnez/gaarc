@@ -59,15 +59,11 @@ class UNetAutoEncoder(pl.LightningModule):
         self._cache_stm_samples: bool = cache_secondary_task_samples
         self._verbose_training: bool = verbose_training
         self._secondary_task_modules: nn.ModuleList = (
-            nn.ModuleList(secondary_task_modules)
-            if secondary_task_modules
-            else nn.ModuleList([])
+            nn.ModuleList(secondary_task_modules) if secondary_task_modules else nn.ModuleList([])
         )
         self._epochs_trained: int = -1
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
-        self._device = (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
+        self._device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
         self._model: nn.Module = UNet(
             input_channels,
@@ -98,15 +94,15 @@ class UNetAutoEncoder(pl.LightningModule):
 
         predictions = self.forward(samples)
 
+        losses = []
         for sample, padding, prediction in zip(samples, paddings, predictions):
             target = self._crop_tensor(sample, padding).long()
             loss_target = target.unsqueeze(0).contiguous()
 
-            prediction_without_padding = self._crop_tensor(
-                prediction, padding
-            ).unsqueeze(0)
+            prediction_without_padding = self._crop_tensor(prediction, padding).unsqueeze(0)
 
             loss = self.loss_fn(prediction_without_padding, loss_target)
+            losses.append(loss)
 
             prediction_classes = torch.max(prediction_without_padding, dim=1)[1]
 
@@ -124,6 +120,8 @@ class UNetAutoEncoder(pl.LightningModule):
 
             self._step_outputs[stage].append(output_metrics)
 
+        combined_loss = sum(losses) / len(losses)
+
         if stage == "train" and self._secondary_task_modules:
             stm_samples: list[ARCSample] = [
                 self._get_arc_sample(sample) for sample in samples.cpu()
@@ -137,19 +135,18 @@ class UNetAutoEncoder(pl.LightningModule):
                 )
 
                 for step_output in self._step_outputs[stage]:
-                    step_output.update(
-                        {f"{secondary_task_module.name} loss": secondary_task_loss}
-                    )
+                    step_output.update({f"{secondary_task_module.name} loss": secondary_task_loss})
 
                 secondary_task_losses.append(secondary_task_loss)
 
-            secondary_tasks_combined_loss = sum(secondary_task_losses)
+            secondary_tasks_combined_loss = sum(secondary_task_losses) / len(
+                self._secondary_task_modules
+            )
             secondary_tasks_combined_loss *= self._secondary_tasks_global_loss_weight
-            secondary_tasks_combined_loss /= len(self._secondary_task_modules)
 
-            loss += secondary_tasks_combined_loss
+            combined_loss += secondary_tasks_combined_loss
 
-        return loss
+        return combined_loss
 
     def on_epoch_end(self, stage):
         total_loss = 0
@@ -164,9 +161,7 @@ class UNetAutoEncoder(pl.LightningModule):
             fn = torch.cat([output["fn"] for output in self._step_outputs[stage]])
             tn = torch.cat([output["tn"] for output in self._step_outputs[stage]])
 
-            per_image_iou = smp.metrics.iou_score(
-                tp, fp, fn, tn, reduction="micro-imagewise"
-            )
+            per_image_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro-imagewise")
 
             dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
 
@@ -196,9 +191,7 @@ class UNetAutoEncoder(pl.LightningModule):
                         secondary_task_loss = 0
 
                         for step_output in self._step_outputs[stage]:
-                            secondary_task_loss += step_output[
-                                secondary_task_loss_name
-                            ].detach()
+                            secondary_task_loss += step_output[secondary_task_loss_name].detach()
 
                         metrics.update(
                             {secondary_task_loss_name: secondary_task_loss / iter_count}
@@ -212,17 +205,13 @@ class UNetAutoEncoder(pl.LightningModule):
                 elif stage == "test":
                     print_color = "\033[96m"
 
-                print(
-                    f"{print_color}Epoch {self._epochs_trained:02d} {stage}: {metrics}"
-                )
+                print(f"{print_color}Epoch {self._epochs_trained:02d} {stage}: {metrics}")
 
             self._step_outputs[stage].clear()
 
             self.log_dict(metrics, prog_bar=True)
 
-    def training_step(
-        self, batch, batch_idx
-    ):  # pylint: disable=arguments-differ, unused-argument
+    def training_step(self, batch, batch_idx):  # pylint: disable=arguments-differ, unused-argument
         return self.step(batch, "train")
 
     def on_train_epoch_end(self):
@@ -238,9 +227,7 @@ class UNetAutoEncoder(pl.LightningModule):
         with torch.no_grad():
             return self.on_epoch_end("valid")
 
-    def test_step(
-        self, batch, batch_idx
-    ):  # pylint: disable=arguments-differ, unused-argument
+    def test_step(self, batch, batch_idx):  # pylint: disable=arguments-differ, unused-argument
         with torch.no_grad():
             return self.step(batch, "test")
 
