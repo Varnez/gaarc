@@ -55,9 +55,7 @@ class EntitySTM(STM, ABC):
 
         self._device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def _retrieve_training_elements(
-        self, samples: list[ARCSample]
-    ) -> tuple[list, list]:
+    def _retrieve_training_elements(self, samples: list[ARCSample]) -> tuple[list, list]:
         input_features_retrieved = []
         targets_retrieved = []
 
@@ -71,31 +69,24 @@ class EntitySTM(STM, ABC):
         return input_features_retrieved, targets_retrieved
 
     def train_on_task(self, samples: list[ARCSample], encoder: nn.Module) -> Loss:
-        input_features_retrieved, targets_retrieved = self._retrieve_training_elements(
-            samples
-        )
+        input_features_retrieved, targets_retrieved = self._retrieve_training_elements(samples)
 
         input_features = torch.tensor(
             np.array(input_features_retrieved), dtype=torch.float, device=self._device
         )
-        targets = torch.tensor(
-            np.array(targets_retrieved), dtype=torch.float, device=self._device
-        )
+        targets = torch.tensor(np.array(targets_retrieved), dtype=torch.float, device=self._device)
 
         predictions = self.forward(input_features, encoder)
 
-        loss = self._loss_function(predictions, targets)
+        loss = self._loss_function(predictions, targets) / len(input_features_retrieved)
         loss *= self._loss_weight
-        loss /= len(input_features_retrieved)
 
         return loss
 
 
 class SuperEntitySTM(EntitySTM, ABC):
 
-    def _retrieve_training_elements(
-        self, samples: list[ARCSample]
-    ) -> tuple[list, list]:
+    def _retrieve_training_elements(self, samples: list[ARCSample]) -> tuple[list, list]:
         input_features_retrieved = []
         targets_retrieved = []
 
