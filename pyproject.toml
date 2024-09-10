@@ -15,6 +15,7 @@ pytorch-lightning = ">=2.2.5,<2.3.0"
 segmentation-models-pytorch = ">=0.3.3,<0.4.0"
 torch = ">=2.2.2,<2.3.0"
 xxhash = "^3.5.0"
+pandas = "^2.2.2"
 
 
 [build-system]
