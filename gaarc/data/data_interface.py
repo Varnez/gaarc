@@ -16,9 +16,7 @@ class ARCDataset(Dataset, ABC):
         self,
         arc_task_jsons: list[Path],
         padding_shape: tuple[int, int] | None = None,
-        augmentation_transformations: (
-            list[DataAugmentationTransformation] | None
-        ) = None,
+        augmentation_transformations: list[DataAugmentationTransformation] | None = None,
         cache_data_views: bool = True,
     ):
         self._samples: list[np.ndarray] | None = None
@@ -27,9 +25,9 @@ class ARCDataset(Dataset, ABC):
         self._padding_height: int | None = None
         self._padding_width: int | None = None
         self._augment_data: bool = True
-        self._augmentation_transformations: (
-            list[DataAugmentationTransformation] | None
-        ) = augmentation_transformations
+        self._augmentation_transformations: list[DataAugmentationTransformation] | None = (
+            augmentation_transformations
+        )
         self._cache_data_views: bool = cache_data_views
 
         if padding_shape is not None:
@@ -116,9 +114,7 @@ class ARCAutoencoderDataset(ARCDataset):
             train_samples = self._train_samples
 
         else:
-            train_samples = self._contents[self._contents["role"] == "train"][
-                "sample"
-            ].to_list()
+            train_samples = self._contents[self._contents["role"] == "train"]["sample"].to_list()
 
         if self._cache_data_views:
             self._train_samples = train_samples
@@ -131,9 +127,7 @@ class ARCAutoencoderDataset(ARCDataset):
             test_samples = self._test_samples
 
         else:
-            test_samples = self._contents[self._contents["role"] == "test"][
-                "sample"
-            ].to_list()
+            test_samples = self._contents[self._contents["role"] == "test"]["sample"].to_list()
 
         if self._cache_data_views:
             self._test_samples = test_samples
@@ -152,16 +146,11 @@ class ARCAutoencoderDataset(ARCDataset):
     def __getitem__(self, idx):
         sample = self.samples[idx]
 
-        if (
-            self._augmentation_transformations is not None
-            and self._augment_data is True
-        ):
+        if self._augmentation_transformations is not None and self._augment_data is True:
             for agumentation_transformation in self._augmentation_transformations:
                 sample = agumentation_transformation.transform(sample)
 
-        padded_sample, padding = padd_image(
-            sample, self._padding_height, self._padding_width, -1
-        )
+        padded_sample, padding = padd_image(sample, self._padding_height, self._padding_width, -1)
 
         padded_sample = torch.tensor(padded_sample, dtype=torch.float).unsqueeze(0)
         padding = torch.tensor(padding, dtype=torch.int)
@@ -175,9 +164,7 @@ class ARCTasksDataset(ARCDataset):
         self,
         arc_task_jsons: list[Path],
         padding_shape: tuple[int, int] | None = None,
-        augmentation_transformations: (
-            list[DataAugmentationTransformation] | None
-        ) = None,
+        augmentation_transformations: list[DataAugmentationTransformation] | None = None,
         cache_data_views: bool = True,
     ):
 
@@ -211,12 +198,18 @@ class ARCTasksDataset(ARCDataset):
             inputs.append(padded_sample)
             inputs_paddings.append(padding)
 
+        inputs = np.array(inputs)
+        inputs_paddings = np.array(inputs_paddings)
+
         for output in task.outputs:
             padded_sample, padding = padd_image(
                 output, self._padding_height, self._padding_width, -1
             )
             outputs.append(padded_sample)
             outputs_paddings.append(padding)
+
+        outputs = np.array(outputs)
+        outputs_paddings = np.array(outputs_paddings)
 
         inputs = torch.tensor(inputs, dtype=torch.float).unsqueeze(1)
         inputs_paddings = torch.tensor(inputs_paddings, dtype=torch.int)
