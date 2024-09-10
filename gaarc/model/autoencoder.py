@@ -61,6 +61,7 @@ class UNetAutoEncoder(pl.LightningModule):
         self._secondary_task_modules: nn.ModuleList = (
             nn.ModuleList(secondary_task_modules) if secondary_task_modules else nn.ModuleList([])
         )
+        self._train_secondary_task_modules: bool = True
         self._epochs_trained: int = -1
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
         self._device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -87,6 +88,14 @@ class UNetAutoEncoder(pl.LightningModule):
         mask = self.model(tensor)
 
         return mask
+
+    @property
+    def train_secondary_task_modules(self) -> bool:
+        return self._train_secondary_task_modules
+
+    @train_secondary_task_modules.setter
+    def train_secondary_task_modules(self, activate_train: bool) -> None:
+        self._train_secondary_task_modules = activate_train
 
     def step(self, batch, stage):
         samples = batch[0]
@@ -122,14 +131,17 @@ class UNetAutoEncoder(pl.LightningModule):
 
         combined_loss = sum(losses) / len(losses)
 
-        if stage == "train" and self._secondary_task_modules:
+        if (
+            stage == "train"
+            and self._secondary_task_modules
+            and self._train_secondary_task_modules
+        ):
             stm_samples: list[ARCSample] = [
                 self._get_arc_sample(sample) for sample in samples.cpu()
             ]
             secondary_task_losses: list[Loss] = []
 
             for secondary_task_module in self._secondary_task_modules:
-
                 secondary_task_loss = secondary_task_module.train_on_task(
                     stm_samples, self._model.encoder
                 )
@@ -185,7 +197,7 @@ class UNetAutoEncoder(pl.LightningModule):
                 self._epochs_trained += 1
 
             if stage == "train":
-                if self._secondary_task_modules:
+                if self._secondary_task_modules and self._train_secondary_task_modules:
                     for secondary_task_module in self._secondary_task_modules:
                         secondary_task_loss_name = f"{secondary_task_module.name} loss"
                         secondary_task_loss = 0
