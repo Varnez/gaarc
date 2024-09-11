@@ -44,6 +44,7 @@ class UNetAutoEncoder(pl.LightningModule):
         model_layer_depth: int,
         initial_learning_rate: float = 0.0001,
         secondary_task_modules: list[STM] | None = None,
+        secondary_task_train_epoch_interval: int = 1,
         secondary_tasks_global_loss_weight: float = 1.0,
         cache_secondary_task_samples: bool = True,
         verbose_training: bool = False,
@@ -62,6 +63,7 @@ class UNetAutoEncoder(pl.LightningModule):
             nn.ModuleList(secondary_task_modules) if secondary_task_modules else nn.ModuleList([])
         )
         self._train_secondary_task_modules: bool = True
+        self._secondary_task_train_epoch_interval = secondary_task_train_epoch_interval
         self._epochs_trained: int = -1
         self._step_outputs: dict[list] = {"train": [], "valid": [], "test": []}
         self._device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -135,6 +137,7 @@ class UNetAutoEncoder(pl.LightningModule):
             stage == "train"
             and self._secondary_task_modules
             and self._train_secondary_task_modules
+            and self._epochs_trained % self._secondary_task_train_epoch_interval == 0
         ):
             stm_samples: list[ARCSample] = [
                 self._get_arc_sample(sample) for sample in samples.cpu()
@@ -196,18 +199,20 @@ class UNetAutoEncoder(pl.LightningModule):
             if stage == "valid":
                 self._epochs_trained += 1
 
-            if stage == "train":
-                if self._secondary_task_modules and self._train_secondary_task_modules:
-                    for secondary_task_module in self._secondary_task_modules:
-                        secondary_task_loss_name = f"{secondary_task_module.name} loss"
-                        secondary_task_loss = 0
+            if (
+                stage == "train"
+                and self._secondary_task_modules
+                and self._train_secondary_task_modules
+                and self._epochs_trained % self._secondary_task_train_epoch_interval == 0
+            ):
+                for secondary_task_module in self._secondary_task_modules:
+                    secondary_task_loss_name = f"{secondary_task_module.name} loss"
+                    secondary_task_loss = 0
 
-                        for step_output in self._step_outputs[stage]:
-                            secondary_task_loss += step_output[secondary_task_loss_name].detach()
+                    for step_output in self._step_outputs[stage]:
+                        secondary_task_loss += step_output[secondary_task_loss_name].detach()
 
-                        metrics.update(
-                            {secondary_task_loss_name: secondary_task_loss / iter_count}
-                        )
+                    metrics.update({secondary_task_loss_name: secondary_task_loss / iter_count})
 
             if self._verbose_training:
                 if stage == "train":
