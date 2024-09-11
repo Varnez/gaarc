@@ -6,13 +6,13 @@ import xxhash  # pylint: disable=import-error
 from torch import nn
 from torch.nn.modules.loss import MSELoss
 
-from gaarc.model.secondary_task_modules import STM, ARCSample, Loss
+from gaarc.model.secondary_task_modules import STM, ARCSample
 from gaarc.model.unet import UNet
 
 
 class UNetTaskSolver(pl.LightningModule):
     """
-    Pytorch lightning wrapper for the task solver which is intended to make use of the unet backbone
+    Pytorch lightning wrapper for the task solver which is intended to make use of the Unet backbone
     from a pretrained UnetAutoencoder as backbone.
     """
 
@@ -59,10 +59,10 @@ class UNetTaskSolver(pl.LightningModule):
         return mask
 
     def step(self, batch, stage):
-        inputs = batch[0]
-        inputs_padding = batch[1]
-        outputs = batch[2]
-        outputs_padding = batch[3]
+        inputs = batch[0][0]
+        # inputs_padding = batch[1]
+        outputs = batch[2][0]
+        # outputs_padding = batch[3]
 
         predicted_samples = self.forward(inputs)
         predicted_samples = torch.max(predicted_samples, dim=1)[1].unsqueeze(1).type(torch.float)
