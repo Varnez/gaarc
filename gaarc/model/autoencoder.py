@@ -137,7 +137,7 @@ class UNetAutoEncoder(pl.LightningModule):
             stage == "train"
             and self._secondary_task_modules
             and self._train_secondary_task_modules
-            and self._epochs_trained % self._secondary_task_train_epoch_interval == 0
+            and (self._epochs_trained + 1) % self._secondary_task_train_epoch_interval == 0
         ):
             stm_samples: list[ARCSample] = [
                 self._get_arc_sample(sample) for sample in samples.cpu()
