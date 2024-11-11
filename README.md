@@ -26,8 +26,6 @@ gaarc/
 │   └── unet.py
 └── visualization/
     └── arc_visualization.py
-
-notebooks/
 ```
 ### Gaarc modules:
 - **data**: Data management, from preprocessing and transformations for augmentation to data interface classes.
@@ -36,13 +34,24 @@ notebooks/
 
 ### Notebooks
 
-The notebooks were executed in Kaggle within the context of the competition and, thus, do not resolve data acquisition, and this will need to be provided to the local environment if executed outside of Kaggle.
+The original idea was to bring the notebooks used during the development of this work into this repository, under the directory notebooks/. 
+
+Nevertheless, at the time of writting, given that the notebooks have been used to iterate over multiple configurations of the models and haven´t been brought to a proper clean and explicative state to serve as a standalone walkthrough of the developed functionality. Thus, instead of keeping a single copy here within the repository, and until I have time to provide something of proper quality, the notebooks presence in the repository will be relegated to links to the published versions in Kaggle, which also holds alongside them the different versions each notebook have iterated over.
+
+
+- [U-Net Gaarc base autoencoder](https://www.kaggle.com/code/varnez/u-net-gaarc-base-autoencoder)
+- [Task learning with U-Net Gaarc base autoencoder](https://www.kaggle.com/code/varnez/task-learning-with-u-net-gaarc-base-autoencoder)
+- [Task data exploration](https://www.kaggle.com/code/varnez/task-data-exploration)
+
 
 ## ToDo
 
+
 ### AutoEncoder
+
 - In the Autoencoder and subsequent modules, manage a way to be able to explicitly select a device, and properly propagate to all the submodules, keeping a reference as a property for the subtask modules. That is, so far, the biggest painpoin in terms of automated alignment.
 - Store the ARCSample cache within the autoencoder so that multiple STMs only need to cache them once.
+
 
 ### STMs
 - Allow submodule tasks to select an specific subset of entities (or similar) to work with per step.
